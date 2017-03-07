@@ -1,0 +1,43 @@
+---
+title: "marchmadness2017"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+inpath <- "C:/Users/Amy/Documents/GitHub/kaggle/marchmadness2017/"
+
+reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
+team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
+seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
+
+tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
+
+head(reg)
+
+```
+
+```{r}
+reg$wdiff <- reg$Wscore - reg$Lscore
+reg$ldiff <- reg$Lscore - reg$Wscore
+```
+
+```{r}
+## how many games did team 1228 win in 1985?
+seas <- 1985
+d85 <- filter(reg, Season==seas)
+t85 <- filter(tourney, Season==seas)
+
+## wins
+wins <- data.frame(table(d85$Wteam))
+losses <- data.frame(table(d85$Lteam))
+## 
+
+## season result
+seaswin <- merge(wins, losses, by.x="Var1", by.y="Var1")
+names(seaswin) <- c("Team", "Wins", "Losses")
+seaswin$season <- seas
+seaswin$win_pct <- seaswin$Wins / (seaswin$Wins + seaswin$Losses)
+
+
+```
