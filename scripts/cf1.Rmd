@@ -9,10 +9,10 @@ library(dplyr)
 library(stringr)
 library(ggplot2)
  
-inpath <- "C:/Users/Amy/Documents/GitHub/kaggle/marchmadness2017/"
+inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
  
-#reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
-reg <- read.csv("C:/Users/cflagg/Documents/R_Projects/RegularSeasonCompactResults.csv", stringsAsFactors=FALSE)
+reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
+#reg <- read.csv("C:/Users/cflagg/Documents/R_Projects/RegularSeasonCompactResults.csv", stringsAsFactors=FALSE)
 #team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 #seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
  
