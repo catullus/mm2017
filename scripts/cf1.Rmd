@@ -52,11 +52,7 @@ end <- Sys.time()
 end - start # takes about 2.5 seconds to run
 head(proc_reg)
 ```
-```{r}
-ggplot(proc_reg, aes(totwin,wdiff_avg)) + geom_point() + geom_smooth()
-ggplot(proc_reg, aes(totwin,score_avg)) + geom_point()
-ggplot(proc_reg, aes(totwin,wdiff_sd)) + geom_point()
-```
+
 
 ## Process Tournament Data
 
@@ -82,4 +78,45 @@ proc_tourn <- group_by(outtourney, Season, team) %>%
                    wdiff_sd=sd(ifelse(diff>0, as.numeric(diff),0)),
                    ldiff_sd=sd(ifelse(diff<0, as.numeric(diff),0))
                    )
+
+## rename "T_" == tournament data
+names(proc_tourn) <- paste0("T_",names(proc_tourn))
+
+
 ```
+
+```{r}
+ggplot(proc_reg, aes(totwin,wdiff_avg)) + geom_point() + geom_smooth()
+
+```
+
+## Execute a merge
+
+```{r}
+## make keys to match the data between the two tables
+proc_reg$key <- paste0(proc_reg$Season,"_",proc_reg$team)
+proc_tourn$key <- paste0(proc_tourn$T_Season,"_",proc_tourn$T_team)
+
+## the tournament results should be the left table, because the proc_reg table 
+## has results of ALL teams that played (i.e. even teams that didn't make it to the tourney)
+model_dat <- merge(proc_tourn, proc_reg, by.x="key", by.y="key")
+
+model_dat$win_pct <- model_dat$totwin / (model_dat$totwin + model_dat$totloss)
+```
+
+## try a simple model
+
+```{r}
+m1 <- lm(T_totwin ~ win_pct + wdiff_avg + ldiff_avg + wdiff_sd + ldiff_sd, data = model_dat)
+summary(m1)
+```
+
+## try some viz for tourney data
+
+
+```{r}
+ggplot(model_dat, aes(T_totwin,win_pct)) + geom_point() 
+ggplot(model_dat, aes(T_totwin,wdiff_avg)) + geom_point()
+ggplot(model_dat, aes(T_totwin,wdiff_sd)) + geom_point()
+```
+
