@@ -12,11 +12,11 @@ library(ggplot2)
 inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
  
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
-#reg <- read.csv("C:/Users/cflagg/Documents/R_Projects/RegularSeasonCompactResults.csv", stringsAsFactors=FALSE)
-#team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
-#seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
+
+team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
+seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
  
-#tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
+tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
  
 head(reg)
  
@@ -56,4 +56,30 @@ head(proc_reg)
 ggplot(proc_reg, aes(totwin,wdiff_avg)) + geom_point() + geom_smooth()
 ggplot(proc_reg, aes(totwin,score_avg)) + geom_point()
 ggplot(proc_reg, aes(totwin,wdiff_sd)) + geom_point()
+```
+
+## Process Tournament Data
+
+```{r}
+tourney$wdiff <- tourney$Wscore - tourney$Lscore
+tourney$ldiff <- tourney$Lscore - tourney$Wscore
+
+wtourney <- select(tourney, Season, Daynum, Wteam, Wscore, Wloc, Numot, wdiff) %>% rename(team=Wteam,score=Wscore,loc=Wloc,diff=wdiff)
+ltourney <- select(tourney, Season, Daynum, Lteam, Lscore, Wloc, Numot, ldiff) %>% rename(team=Lteam,score=Lscore,loc=Wloc,diff=ldiff)
+
+outtourney <- rbind(wtourney,ltourney)
+outtourney$outcome <- ifelse(outtourney$diff > 0, "win", "loss")
+
+proc_tourn <- group_by(outtourney, Season, team) %>%
+  ## need to make sure to use summarise from dplyr, not plyr
+  dplyr::summarise(totwin=sum(str_count(outcome, "win")),  # count total wins for the season
+                   totloss=sum(str_count(outcome, "loss")),
+                   ## average win margin - filter out negatives (those are losses), can do stdev too with same logic
+                   wdiff_avg=mean(ifelse(diff>0, as.numeric(diff), 0)),
+                   ldiff_avg=mean(ifelse(diff<0, as.numeric(diff), 0)),## average loss margin
+                   score_avg=mean(score),
+                   score_sd=sd(score),
+                   wdiff_sd=sd(ifelse(diff>0, as.numeric(diff),0)),
+                   ldiff_sd=sd(ifelse(diff<0, as.numeric(diff),0))
+                   )
 ```
