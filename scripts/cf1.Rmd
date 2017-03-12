@@ -10,6 +10,7 @@ library(plyr)
 library(dplyr)
 library(stringr)
 library(ggplot2)
+library(PlayerRatings)
  
 inpath <- "C:/Users/jroberti/Git/mm2017/data/"
     #"C:/Users/Amy/Documents/GitHub/mm2017/data/"
@@ -24,6 +25,29 @@ tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactor
 head(reg)
  
 ```
+## estimate ELO ratings
+
+* Pilot 2016 season to see how to format and evaluate whether it makes sense...
+
+```{r}
+reg2016 <- filter(reg, Season==2016)
+# assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
+reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
+
+ranks2016 <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
+
+regSeason2016 <- merge(ranks2016$ratings, team, by.x="Player", by.y="Team_Id")
+arrange(regSeason2016, desc(Rating)) %>% head(30)
+```
+
+* Villanova is in top 5 for entire country (they won 2016 tourney)
+* #1 ranked Kansas made it to Final Four, lost to Villanova
+* Miami FL is in top 15, and made it to Elite Eight
+* Maryland is in top 30, and made it to Elite Eight
+* Oregon is in top 3, and made it to Final Four
+* Oklahoma is in top 15 and made it to Final Four
+* Texas A&M made it to Elite Eight and is in top 20
+* Duke is in top 30, made it to Elite Eight
  
 ```{r}
 reg$wdiff <- reg$Wscore - reg$Lscore
