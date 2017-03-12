@@ -1,6 +1,8 @@
 ---
 title: "marchmadness2017"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
  
 ```{r}
@@ -9,7 +11,8 @@ library(dplyr)
 library(stringr)
 library(ggplot2)
  
-inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
+inpath <- "C:/Users/jroberti/Git/mm2017/data/"
+    #"C:/Users/Amy/Documents/GitHub/mm2017/data/"
  
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
 
