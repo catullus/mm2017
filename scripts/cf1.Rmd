@@ -8,6 +8,7 @@ library(plyr)
 library(dplyr)
 library(stringr)
 library(ggplot2)
+library(PlayerRatings)
  
 inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
  
@@ -20,6 +21,20 @@ tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactor
  
 head(reg)
  
+```
+## estimate ELO ratings
+
+* Pilot one season to see how to format
+
+```{r}
+reg2016 <- filter(reg, Season==2016)
+# assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
+reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
+
+ranks2016 <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
+
+regSeason2016 <- merge(ranks2016$ratings, team, by.x="Player", by.y="Team_Id")
+arrange(regSeason2016, desc(Rating)) %>% head
 ```
  
 ```{r}
