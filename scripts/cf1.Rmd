@@ -27,14 +27,22 @@ head(reg)
 * Pilot 2016 season to see how to format and evaluate whether it makes sense...
 
 ```{r}
-reg2016 <- filter(reg, Season==2016)
-# assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
-reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
+# reg2016 <- filter(reg, Season==2016)
+# # assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
+# reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
 
-ranks2016 <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
+# ranks2016 <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
+# # # 
+# regSeason2016 <- merge(ranks2016$ratings, team, by.x="Player", by.y="Team_Id")
+# arrange(regSeason2016, desc(Rating)) %>% head(50)
 
-regSeason2016 <- merge(ranks2016$ratings, team, by.x="Player", by.y="Team_Id")
-arrange(regSeason2016, desc(Rating)) %>% head(30)
+# reg$Outcome <- ifelse(reg$Wscore - reg$Lscore>0, 1, 0)
+# reg_ranks <- reg %>% group_by_(Season) %>% select_(Daynum, Wteam, Lteam, Outcome) %>% steph(x[,c("Daynum", "Wteam", "Lteam", "Outcome")])
+
+all_ranks <- plyr::ddply(reg_ranks, .(Season), function(x){
+  yo <- steph(x[,c("Daynum", "Wteam", "Lteam", "Outcome")])
+  return(yo$ratings)
+})
 ```
 
 * Villanova is in top 5 for entire country (they won 2016 tourney)
@@ -45,7 +53,8 @@ arrange(regSeason2016, desc(Rating)) %>% head(30)
 * Oklahoma is in top 15 and made it to Final Four
 * Texas A&M made it to Elite Eight and is in top 20
 * Duke is in top 30, made it to Elite Eight
- 
+* Syracuse only potential 'Dark Horse', made it to Final Four but was not Ranked Top 30 for 2016 season
+
 ```{r}
 reg$wdiff <- reg$Wscore - reg$Lscore
 reg$ldiff <- reg$Lscore - reg$Wscore
