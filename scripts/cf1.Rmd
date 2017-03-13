@@ -1,6 +1,8 @@
 ---
 title: "marchmadness2017"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
  
 ```{r}
@@ -13,7 +15,8 @@ library(car)
 library(randomForest)
 # library(gbm)
  
-inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
+inpath <- "C:/Users/jroberti/Git/mm2017/data/"
+    #"C:/Users/Amy/Documents/GitHub/mm2017/data/"
  
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
 
@@ -33,10 +36,13 @@ head(reg)
 ```{r}
 reg$Elo_Outcome <- ifelse(reg$Wscore - reg$Lscore>0, 1, 0)
 
-all_ranks <- plyr::ddply(reg, .(Season), function(x){
+season_end_ranks <- plyr::ddply(reg, .(Season), function(x){
   yo <- steph(x[,c("Daynum", "Wteam", "Lteam", "Elo_Outcome")], history=TRUE)
   return(yo$ratings)
 })
+
+season_end_ranks$key <- paste0(season_end_ranks$Season,"_",season_end_ranks$Player)
+
 ```
 
 * Villanova is in top 5 for entire country (they won 2016 tourney)
@@ -79,7 +85,7 @@ head(proc_reg)
 
 ```{r}
 ## how to pull the last N number of games
-end_of_season <- outreg %>% 
+season_end_wins <- outreg %>% 
   group_by(Season, team) %>% 
   arrange(Daynum) %>% 
   top_n(6, wt=Daynum) %>% 
@@ -87,10 +93,10 @@ end_of_season <- outreg %>%
   summarize(last6_win=sum(str_count(outcome, "win")))
 
 # ## check the results to make sure top_n() is working as expected...
-# tail(end_of_season, 20)
+# tail(season_end_wins, 20)
 # filter(outreg, Season==2016, team==1447) %>% arrange(Daynum) 
 
-end_of_season$key <- paste0(end_of_season$Season,"_",end_of_season$team)
+season_end_wins$key <- paste0(season_end_wins$Season,"_",season_end_wins$team)
 ```
 
 ## Process Tournament Data
@@ -104,6 +110,8 @@ ltourney <- select(tourney, Season, Daynum, Lteam, Lscore, Wloc, Numot, ldiff) %
 
 outtourney <- rbind(wtourney,ltourney)
 outtourney$outcome <- ifelse(outtourney$diff > 0, "win", "loss")
+
+# 
 
 proc_tourn <- group_by(outtourney, Season, team) %>%
   dplyr::summarise(totwin=sum(str_count(outcome, "win")), 
@@ -131,20 +139,24 @@ proc_tourn$key <- paste0(proc_tourn$T_Season,"_",proc_tourn$T_team)
 ## the tournament results should be the left table, because the proc_reg table 
 ## has results of ALL teams that played (i.e. even teams that didn't make it to the tourney)
 model_dat <- merge(proc_tourn, proc_reg, by.x="key", by.y="key")
+model_dat <- merge(model_dat, season_end_wins)
+model_dat <- merge(model_dat, season_end_ranks)
 
 model_dat$win_pct <- model_dat$totwin / (model_dat$totwin + model_dat$totloss)
 ```
 
+## EDA via Scatterplot Matrix
 
 ```{r}
-ggplot(proc_reg, aes(totwin,wdiff_avg)) + geom_point() + geom_smooth()
+car::scatterplotMatrix(~T_totwin+Rating+win_pct+wdiff_avg+ldiff_avg+score_avg+score_sd+wdiff_sd+ldiff_sd+last6_win, data = model_dat)
 ```
 
-## try a simple model
+## Explore different Tournament response variables (i.e. what's a good metric for how a team performs in the tournament?)
 
 ```{r}
-m1 <- lm(T_totwin ~ win_pct + wdiff_avg + ldiff_avg + wdiff_sd + ldiff_sd, data = model_dat)
-summary(m1)
+m1 <- randomForest(T_totwin~win_pct+Rating+wdiff_sd+score_sd+score_avg+Deviation, data = model_dat)
+m2 <- randomForest(T_wdiff_avg~win_pct+Rating+wdiff_sd+score_sd+score_avg+Deviation, data = model_dat)
+m3 <- randomForest(T_wdiff_avg~win_pct+Rating+wdiff_sd+score_sd+score_avg+Deviation, data = model_dat)
 ```
 
 ## try some viz for tourney data
