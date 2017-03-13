@@ -25,31 +25,18 @@ tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactor
 head(reg)
  
 ```
+
 ## estimate ELO ratings
 
 * Pilot 2016 season to see how to format and evaluate whether it makes sense...
 
 ```{r}
-# reg2016 <- filter(reg, Season==2016)
-# # assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
-# reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
-
-# ranks2016 <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
-# # # 
-# regSeason2016 <- merge(ranks2016$ratings, team, by.x="Player", by.y="Team_Id")
-# arrange(regSeason2016, desc(Rating)) %>% head(50)
-
-
-#reg_ranks <- reg %>% group_by_(Season) %>% select_(Daynum, Wteam, Lteam, Outcome) %>% steph(x[,c("Daynum", "Wteam", "Lteam", "Outcome")])
-
-reg$Outcome <- ifelse(reg$Wscore - reg$Lscore>0, 1, 0)
+reg$Elo_Outcome <- ifelse(reg$Wscore - reg$Lscore>0, 1, 0)
 
 all_ranks <- plyr::ddply(reg, .(Season), function(x){
-  yo <- steph(x[,c("Daynum", "Wteam", "Lteam", "Outcome")])
+  yo <- steph(x[,c("Daynum", "Wteam", "Lteam", "Elo_Outcome")], history=TRUE)
   return(yo$ratings)
 })
-
-
 ```
 
 * Villanova is in top 5 for entire country (they won 2016 tourney)
@@ -66,33 +53,45 @@ all_ranks <- plyr::ddply(reg, .(Season), function(x){
 reg$wdiff <- reg$Wscore - reg$Lscore
 reg$ldiff <- reg$Lscore - reg$Wscore
  
+## 'Stack' the data frames to quickly count wins and losses
 wreg <- select(reg, Season, Daynum, Wteam, Wscore, Wloc, Numot, wdiff) %>% rename(team=Wteam,score=Wscore,loc=Wloc,diff=wdiff)
 lreg <- select(reg, Season, Daynum, Lteam, Lscore, Wloc, Numot, ldiff) %>% rename(team=Lteam,score=Lscore,loc=Wloc,diff=ldiff)
- 
 outreg <- rbind(wreg,lreg)
+
+## count wins and losses
 outreg$outcome <- ifelse(outreg$diff > 0, "win", "loss")
 
- 
-### NEED TO TURN OFF PLYR if dplyr:: is not specified for summarise
-#detach(package:plyr)
-start <- Sys.time()
 proc_reg <- group_by(outreg, Season, team) %>%
-  ## need to make sure to use summarise from dplyr, not plyr
-  dplyr::summarise(totwin=sum(str_count(outcome, "win")),  # count total wins for the season
+  dplyr::summarise(totwin=sum(str_count(outcome, "win")),
                    totloss=sum(str_count(outcome, "loss")),
-                   ## average win margin - filter out negatives (those are losses), can do stdev too with same logic
                    wdiff_avg=mean(ifelse(diff>0, as.numeric(diff), 0)),
-                   ldiff_avg=mean(ifelse(diff<0, as.numeric(diff), 0)),## average loss margin
+                   ldiff_avg=mean(ifelse(diff<0, as.numeric(diff), 0)),
                    score_avg=mean(score),
                    score_sd=sd(score),
                    wdiff_sd=sd(ifelse(diff>0, as.numeric(diff),0)),
                    ldiff_sd=sd(ifelse(diff<0, as.numeric(diff),0))
                    )
-end <- Sys.time()
-end - start # takes about 2.5 seconds to run
+
 head(proc_reg)
 ```
 
+### Determine end of season performance
+
+```{r}
+## how to pull the last N number of games
+end_of_season <- outreg %>% 
+  group_by(Season, team) %>% 
+  arrange(Daynum) %>% 
+  top_n(6, wt=Daynum) %>% 
+  #summarize(last6_win=sum(Outcome))
+  summarize(last6_win=sum(str_count(outcome, "win")))
+
+# ## check the results to make sure top_n() is working as expected...
+# tail(end_of_season, 20)
+# filter(outreg, Season==2016, team==1447) %>% arrange(Daynum) 
+
+end_of_season$key <- paste0(end_of_season$Season,"_",end_of_season$team)
+```
 
 ## Process Tournament Data
 
@@ -107,12 +106,10 @@ outtourney <- rbind(wtourney,ltourney)
 outtourney$outcome <- ifelse(outtourney$diff > 0, "win", "loss")
 
 proc_tourn <- group_by(outtourney, Season, team) %>%
-  ## need to make sure to use summarise from dplyr, not plyr
-  dplyr::summarise(totwin=sum(str_count(outcome, "win")),  # count total wins for the season
+  dplyr::summarise(totwin=sum(str_count(outcome, "win")), 
                    totloss=sum(str_count(outcome, "loss")),
-                   ## average win margin - filter out negatives (those are losses), can do stdev too with same logic
                    wdiff_avg=mean(ifelse(diff>0, as.numeric(diff), 0)),
-                   ldiff_avg=mean(ifelse(diff<0, as.numeric(diff), 0)),## average loss margin
+                   ldiff_avg=mean(ifelse(diff<0, as.numeric(diff), 0)),
                    score_avg=mean(score),
                    score_sd=sd(score),
                    wdiff_sd=sd(ifelse(diff>0, as.numeric(diff),0)),
@@ -121,16 +118,10 @@ proc_tourn <- group_by(outtourney, Season, team) %>%
 
 ## rename "T_" == tournament data
 names(proc_tourn) <- paste0("T_",names(proc_tourn))
-
-
 ```
 
-```{r}
-ggplot(proc_reg, aes(totwin,wdiff_avg)) + geom_point() + geom_smooth()
 
-```
-
-## Execute a merge
+## Execute a merge so we can model tourney_outcomes ~ reg_season_data
 
 ```{r}
 ## make keys to match the data between the two tables
@@ -142,6 +133,11 @@ proc_tourn$key <- paste0(proc_tourn$T_Season,"_",proc_tourn$T_team)
 model_dat <- merge(proc_tourn, proc_reg, by.x="key", by.y="key")
 
 model_dat$win_pct <- model_dat$totwin / (model_dat$totwin + model_dat$totloss)
+```
+
+
+```{r}
+ggplot(proc_reg, aes(totwin,wdiff_avg)) + geom_point() + geom_smooth()
 ```
 
 ## try a simple model
