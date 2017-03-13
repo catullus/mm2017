@@ -37,7 +37,7 @@ reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
 ranks2016 <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
 
 regSeason2016 <- merge(ranks2016$ratings, team, by.x="Player", by.y="Team_Id")
-arrange(regSeason2016, desc(Rating)) %>% head(30)
+arrange(regSeason2016, desc(Rating)) %>% head(300)
 ```
 
 * Villanova is in top 5 for entire country (they won 2016 tourney)
