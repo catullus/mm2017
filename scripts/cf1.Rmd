@@ -9,6 +9,9 @@ library(dplyr)
 library(stringr)
 library(ggplot2)
 library(PlayerRatings)
+library(car)
+library(randomForest)
+# library(gbm)
  
 inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
  
@@ -36,13 +39,17 @@ head(reg)
 # regSeason2016 <- merge(ranks2016$ratings, team, by.x="Player", by.y="Team_Id")
 # arrange(regSeason2016, desc(Rating)) %>% head(50)
 
-# reg$Outcome <- ifelse(reg$Wscore - reg$Lscore>0, 1, 0)
-# reg_ranks <- reg %>% group_by_(Season) %>% select_(Daynum, Wteam, Lteam, Outcome) %>% steph(x[,c("Daynum", "Wteam", "Lteam", "Outcome")])
 
-all_ranks <- plyr::ddply(reg_ranks, .(Season), function(x){
+#reg_ranks <- reg %>% group_by_(Season) %>% select_(Daynum, Wteam, Lteam, Outcome) %>% steph(x[,c("Daynum", "Wteam", "Lteam", "Outcome")])
+
+reg$Outcome <- ifelse(reg$Wscore - reg$Lscore>0, 1, 0)
+
+all_ranks <- plyr::ddply(reg, .(Season), function(x){
   yo <- steph(x[,c("Daynum", "Wteam", "Lteam", "Outcome")])
   return(yo$ratings)
 })
+
+
 ```
 
 * Villanova is in top 5 for entire country (they won 2016 tourney)

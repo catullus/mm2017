@@ -1,8 +1,16 @@
 Data:
 https://www.kaggle.com/c/march-machine-learning-mania-2017/data
+2017 Data: https://www.kaggle.com/c/march-machine-learning-mania-2017/discussion/28377
 
 Tutorials/Stories
 https://www.trifacta.com/blog/my-summer-wrangling-data-part-i/
 https://rpubs.com/wubr2000/kagglemarch1 (has another example of rating NCAA teams)
 https://statsguys.wordpress.com/2014/03/06/data-analytics-for-beginners-march-machine-learning-mania-part-i/
 https://www.kaggle.com/c/march-machine-learning-mania-2015/discussion/12627
+https://www.bloomberg.com/news/articles/2014-03-13/better-ncaa-brackets-through-data-science
+
+Writing Functions
+dplyr custom functions: https://medium.com/optima-blog/writing-your-own-dplyr-functions-a1568720db0d#.vs387ahta
+
+Other repos
+https://github.com/zachmayer/kaggleNCAA
