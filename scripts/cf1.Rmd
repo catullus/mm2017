@@ -50,9 +50,9 @@ season_end_ranks$key <- paste0(season_end_ranks$Season,"_",season_end_ranks$Play
 
 ```{r}
 reg2016 <- filter(reg, Season==2013)
+reg2016$weekkey <- paste0(reg2016$Wteam,"_",reg2016$Week)
 
 # assign week of the year based on Daynum -- add year from 'Season'
-
 ## for the given day, assign the numeric week
 week_idx <- data.frame(day=seq(1, 161, 7), week=seq(1,23, 1))
 assign_week <- function(d, idx){
@@ -62,27 +62,35 @@ assign_week <- function(d, idx){
     }
   }
 }
-## tests
-# assign_week(1, week_idx)
-# assign_week(8, week_idx)
-# assign_week(54, week_idx)
-# assign_week(153, week_idx)
-# sapply(seq(1,161,7), assign_week, idx=week_idx)
 
 # assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
 reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
 reg2016$Week <- sapply(reg2016$Daynum, assign_week, week_idx)
 
-# these are ratings where the 'week' paramter is incorrect (it thinks every new Daynum is a new week)
-ranks2016_a <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
 # this uses the Daynum converted to week
-ranks2016_b <- steph(select(reg2016, Week, Wteam, Lteam, Outcome), history=TRUE)
+ranks2016 <- steph(select(reg2016, Week, Wteam, Lteam, Outcome), history=TRUE)
 
-# they're different by 5-20 points; deviation is a lot different
-head(ranks2016_a$ratings)
-head(ranks2016_b$ratings)
-
+# first column is team number -- should convert this from wide to long
+# paste 
 dim(ranks2016$history)
+
+row.names(ranks2016$history)
+
+library(tidyr)
+# matrix comes in wide format
+wide_ranks <- as.data.frame(ranks2016$history)
+wide_ranks$player <- rownames(wide_ranks)
+
+# convert to long format
+long_ranks <- gather(wide_ranks, value = player)
+names(long_ranks) <- c("player", "type", "value")
+long_ranks$week <- stringr::str_sub(long_ranks$type,1,1)
+
+# only grab ratings
+weekly_ranks <- filter(long_ranks, str_detect(type, "Rating"))
+weekly_ranks$key <- paste0(weekly_ranks$player,"_",weekly_ranks$week)
+
+merge(reg2016, weekly_ranks, "weekkey", "key")
 
 # stash the weekly Elo rankings to use in weighting individual match ups
 season_weekly_ranks <- plyr::ddply(reg, .(Season), function(x){
