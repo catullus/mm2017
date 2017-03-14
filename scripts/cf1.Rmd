@@ -19,11 +19,14 @@ library(randomForest)
 inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
  
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
+reg <- filter(reg, Season %in% c(2002:2013))
+
 
 team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
  
 tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
+tourney <- filter(tourney, Season %in% c(2002:2013))
  
 head(reg)
  
@@ -42,6 +45,50 @@ season_end_ranks <- plyr::ddply(reg, .(Season), function(x){
 })
 
 season_end_ranks$key <- paste0(season_end_ranks$Season,"_",season_end_ranks$Player)
+
+```
+
+```{r}
+reg2016 <- filter(reg, Season==2013)
+
+# assign week of the year based on Daynum -- add year from 'Season'
+
+## for the given day, assign the numeric week
+week_idx <- data.frame(day=seq(1, 161, 7), week=seq(1,23, 1))
+assign_week <- function(d, idx){
+  for (i in 1:length(idx$day)){
+    if (d >= idx[i,1] & d <= idx[i+1,1]){
+      return(idx[i,2])
+    }
+  }
+}
+## tests
+# assign_week(1, week_idx)
+# assign_week(8, week_idx)
+# assign_week(54, week_idx)
+# assign_week(153, week_idx)
+# sapply(seq(1,161,7), assign_week, idx=week_idx)
+
+# assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
+reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
+reg2016$Week <- sapply(reg2016$Daynum, assign_week, week_idx)
+
+# these are ratings where the 'week' paramter is incorrect (it thinks every new Daynum is a new week)
+ranks2016_a <- steph(select(reg2016, Daynum, Wteam, Lteam, Outcome), history=TRUE)
+# this uses the Daynum converted to week
+ranks2016_b <- steph(select(reg2016, Week, Wteam, Lteam, Outcome), history=TRUE)
+
+# they're different by 5-20 points; deviation is a lot different
+head(ranks2016_a$ratings)
+head(ranks2016_b$ratings)
+
+dim(ranks2016$history)
+
+# stash the weekly Elo rankings to use in weighting individual match ups
+season_weekly_ranks <- plyr::ddply(reg, .(Season), function(x){
+  yo <- steph(x[,c("Daynum", "Wteam", "Lteam", "Elo_Outcome")], history=TRUE)
+  return(yo$ratings)
+})
 
 ```
 
@@ -181,9 +228,9 @@ m3 <- randomForest(win_pct~Rating+wdiff_sd+wdiff_avg+score_avg+score_sd+score_av
 
 varImpPlot(m3)
 
-partialPlot(m3, model_dat, "ldiff_avg")
-partialPlot(m3, model_dat, "wdiff_avg")
-partialPlot(m3, model_dat, "Rating")
+# partialPlot(m3, model_dat, "ldiff_avg")
+# partialPlot(m3, model_dat, "wdiff_avg")
+# partialPlot(m3, model_dat, "Rating")
 ```
 
 
