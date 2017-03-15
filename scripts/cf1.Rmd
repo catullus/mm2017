@@ -13,14 +13,15 @@ library(ggplot2)
 library(PlayerRatings)
 library(car)
 library(randomForest)
+library(tidyr)
 # library(gbm)
  
 #inpath <- "C:/Users/jroberti/Git/mm2017/data/"
-inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
+#inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
+inpath <- "C:/Users/cflagg/Documents/R_Projects/"
  
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
 reg <- filter(reg, Season %in% c(2002:2013))
-
 
 team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
@@ -50,7 +51,7 @@ season_end_ranks$key <- paste0(season_end_ranks$Season,"_",season_end_ranks$Play
 
 ```{r}
 reg2016 <- filter(reg, Season==2013)
-reg2016$weekkey <- paste0(reg2016$Wteam,"_",reg2016$Week)
+
 
 # assign week of the year based on Daynum -- add year from 'Season'
 ## for the given day, assign the numeric week
@@ -66,38 +67,39 @@ assign_week <- function(d, idx){
 # assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
 reg2016$Outcome <- ifelse(reg2016$Wscore - reg2016$Lscore>0, 1, 0)
 reg2016$Week <- sapply(reg2016$Daynum, assign_week, week_idx)
+reg2016$weekkey_winner <- paste0(reg2016$Wteam,"_",reg2016$Week)
+reg2016$weekkey_loser <- paste0(reg2016$Lteam,"_",reg2016$Week)
 
 # this uses the Daynum converted to week
 ranks2016 <- steph(select(reg2016, Week, Wteam, Lteam, Outcome), history=TRUE)
+x <- c("1.Rating", "11.Rating")
 
-# first column is team number -- should convert this from wide to long
-# paste 
-dim(ranks2016$history)
+strsplit(x, "[.]")
 
-row.names(ranks2016$history)
-
-library(tidyr)
 # matrix comes in wide format
 wide_ranks <- as.data.frame(ranks2016$history)
 wide_ranks$player <- rownames(wide_ranks)
 
 # convert to long format
-long_ranks <- gather(wide_ranks, value = player)
+long_ranks <- tidyr::gather(wide_ranks, value = player)
 names(long_ranks) <- c("player", "type", "value")
-long_ranks$week <- stringr::str_sub(long_ranks$type,1,1)
+## this is screwing up the week -- split is a regex field
+long_ranks$week <- ldply(stringr::str_split(long_ranks$type,"[.]"))[,1]
 
 # only grab ratings
 weekly_ranks <- filter(long_ranks, str_detect(type, "Rating"))
-weekly_ranks$key <- paste0(weekly_ranks$player,"_",weekly_ranks$week)
+weekly_ranks$weekkey <- paste0(weekly_ranks$player,"_",weekly_ranks$week)
 
-merge(reg2016, weekly_ranks, "weekkey", "key")
+reg_weekly_ranks <- merge(reg2016, weekly_ranks, by.x=c("weekkey_winner"), by.y=c("weekkey"))
+reg_weekly_ranks <- rename(reg_weekly_ranks, Wteam_rank=value) %>% select(-player, -type, -week)
+reg_weekly_ranks <- merge(reg_weekly_ranks, weekly_ranks, by.x=c("weekkey_loser"), by.y=c("weekkey"))
+reg_weekly_ranks <- rename(reg_weekly_ranks, Lteam_rank=value) %>% select(-player, -type, -week)
 
 # stash the weekly Elo rankings to use in weighting individual match ups
 season_weekly_ranks <- plyr::ddply(reg, .(Season), function(x){
   yo <- steph(x[,c("Daynum", "Wteam", "Lteam", "Elo_Outcome")], history=TRUE)
   return(yo$ratings)
 })
-
 ```
 
 * Villanova is in top 5 for entire country (they won 2016 tourney)
