@@ -52,7 +52,7 @@ reg_det$Lposs.eff<-reg_det$Lposs.action/reg_det$Lposs
 # stack these -- model needs win as 1 and 0 or win/loss
 #################################################################################################
 model_vars <- c("Wfgm", "Lfgm", "Wor", "Lor")
-
+## this sets up the data for a binary model
 prep_reg_det_model <- function(data, model_vars){
   #vars <- match(model_vars, names(data))
   reg_det_win <- data
@@ -82,10 +82,11 @@ prep_reg_det_model <- function(data, model_vars){
 
 h2h_reg_det <- prep_reg_det_model(reg_det, mymod);head(h2h_reg_det)
 
-## run model e.g. randomForest(data=h2h_reg_det)
+## run model e.g. 
+mrf1 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg_pct, data=filter(h2h_reg_det, Season %in% c(2015:2016)))
 
 #################################################################################################
-
+## feed this processed season results (i.e. lines of team statistics up to line 46 above)
 prep_season_end_stats <- function(data){
   reg_det_win <- select(data, -Lfg_pct, -Lft_pct,-Lfg3_pct,-Lposs, -Lposs.action, -Lposs.eff, -Lshoot.prct, -Lfgm, -Lfga, -Lfgm3, -Lfga3, -Lftm, -Lfta, -Lor, -Ldr, -Last, -Lto, -Lstl, -Lblk, -Lpf, -Lteam, -Lscore, -Wloc, -Lfga2, -Lfgm2)
   names(reg_det_win) <- str_replace(names(reg_det_win), pattern = "^W", "")
@@ -99,8 +100,8 @@ prep_season_end_stats <- function(data){
   ###### Summarize end of season results
   proc_reg_det <- group_by(out_reg_det, Season, team) %>%
     arrange(Daynum) %>% 
-    dplyr::summarise(score=mean(score),
-                     score_sd=sd(score),
+    dplyr::summarise(scores=mean(score),
+                     score_sd=sd(score, na.rm=TRUE),
                      poss.ef=mean(poss.eff),
                      fgm=mean(fgm),
                      fga=mean(fga),
@@ -125,37 +126,39 @@ seasonEnd <- prep_season_end_stats(reg_det)
 #################################################################################################
 ## this is to feed into the model object for predictions
 ## -- need to match end of season stats to tourney match ups 
+## feed this the summary data from end of season and the tournament data (i.e. matchups)
 join_seasonEnd_tourney <- function(end_season_data, tourney_matchups){
-proc_reg_det_test$team_key <- paste0(proc_reg_det_test$Season,"_", proc_reg_det_test$team)
+  
+  end_season_data$team_key <- paste0(end_season_data$Season,"_", end_season_data$team)
+  
+  tourney_matchups$Wteam_key <- paste0(tourney_matchups$Season,"_",tourney_matchups$Wteam)
+  tourney_matchups$Lteam_key <- paste0(tourney_matchups$Season,"_",tourney_matchups$Lteam)
+  
+  tourney_matchups_model <- merge(tourney_matchups, end_season_data, by.x="Wteam_key", by.y="team_key")
+  
+  #org_name <- names(tourney_matchups_model[,13:ncol(tourney_matchups_model)])
+  
+  tourney_matchups_model <- select(tourney_matchups_model, -Season.y, -team) %>% 
+    rename(Ascore=scores, Afgm=fgm,Afga=fga, Afgm3=fgm3, Afga3=fga3, Aftm=ftm, Afta=fta, Aor=or, Adr=dr, 
+           Aast=ast, Ato=to, Astl=stl, Ablk=blk, Apf=pf, Afg_pct=fg_pct, Aft_pct=ft_pct, 
+           Afg3_pct=fg3_pct, Aposs.eff=poss.ef, Ascore_sd=score_sd)
+  
 
-    tourney_test$Wteam_key <- paste0(tourney_test$Season,"_",tourney_test$Wteam)
-    tourney_test$Lteam_key <- paste0(tourney_test$Season,"_",tourney_test$Lteam)
-    
-    tourney_test_model <- merge(tourney_test, proc_reg_det_test, by.x="Wteam_key", by.y="team_key")
-    
-    #org_name <- names(tourney_test_model[,13:ncol(tourney_test_model)])
-    
-    tourney_test_model <- select(tourney_test_model, -Season.y, -team, -fg3_pct, -ft_pct, -fg_pct) %>% 
-      rename(Ascore=score, Afgm=fgm,Afga=fga, Afgm3=fgm3, Afga3=fga3, Aftm=ftm, Afta=fta, Aor=or, Adr=dr, Aast=ast, Ato=to, Astl=stl, Ablk=blk, Apf=pf)
-    
-    names(tourney_test)
-    
-    tourney_test_model <- merge(tourney_test_model, proc_reg_det_test, by.x="Lteam_key", by.y="team_key")
-    
-    tourney_test_model <- select(tourney_test_model, -Season, -team, -fg3_pct, -ft_pct, -fg_pct) %>% 
-      rename(Bscore=score, Bfgm=fgm,Bfga=fga, Bfgm3=fgm3, Bfga3=fga3, Bftm=ftm, Bfta=fta, Bor=or, Bdr=dr, Bast=ast, Bto=to, Bstl=stl, Bblk=blk, Bpf=pf)
+  #names(tourney_matchups)
+  
+  tourney_matchups_model <- merge(tourney_matchups_model, end_season_data, by.x="Lteam_key", by.y="team_key")
+  
+  tourney_matchups_model <- select(tourney_matchups_model, -Season, -team) %>% 
+    rename(Bscore=scores, Bfgm=fgm,Bfga=fga, Bfgm3=fgm3, Bfga3=fga3, Bftm=ftm, 
+           Bfta=fta, Bor=or, Bdr=dr, Bast=ast, Bto=to, Bstl=stl, Bblk=blk, Bpf=pf, 
+           Bfg_pct=fg_pct, Bft_pct=ft_pct, Bfg3_pct=fg3_pct, Bposs.eff=poss.ef,Bscore_sd=score_sd)
 }
 
-
+tournament_match <- join_seasonEnd_tourney(seasonEnd, tourney)
 
 #################################################################################################
 ## Assess Model params = (model_object, test_data)
 ###### FEED INTO RANDOM FOREST MODEL
-tourney_test_model_results <- predict(object = m_rf2, newdata = tourney_test_model, type="prob")
-
-## each row in tourney_test_model is a win for the Ateam by default
-pred_outcome <- cbind(tourney_test_model, tourney_test_model_results)
-## did the model correctly predict this based on the stats?
-
-## count how many games the model predicted 'correctly' i.e. win >= 0.50
-table(pred_outcome$win>=0.505)/sum(table(pred_outcome$win))
+pred_outcome1 <- predict(mrf1, newdata=tournament_match, type="prob")
+pred_outcome1 <- cbind(tournament_match, pred_outcome1)
+table(pred_outcome1$win>=0.505)/sum(table(pred_outcome1$win))
