@@ -23,7 +23,7 @@ tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactor
 # 32 seconds to do all processing
 #source(file = paste0(sourcepath,"proc_data.R"))
 
-## Munge: End of Season Stats
+## Munge: Regular Season Stats
 # stack these
 reg_det_win <- reg_det
 ## rename
@@ -86,11 +86,8 @@ tourney_test <- filter(tourney, Season %in% c(2002:2016))
 #reg_det_win <- select(reg_det, -Lfgm, -Lfga, -Lfgm3, -Lfga3, -Lftm, -Lfta, -Lor, -Ldr, -Last, -Lto, -Lstl, -Lblk, -Lpf, -Lteam, -Lscore, -Wloc)
 # stack these
 reg_det_win <- select(reg_det, -Lfgm, -Lfga, -Lfgm3, -Lfga3, -Lftm, -Lfta, -Lor, -Ldr, -Last, -Lto, -Lstl, -Lblk, -Lpf, -Lteam, -Lscore, -Wloc)
-## rename
 names(reg_det_win) <- str_replace(names(reg_det_win), pattern = "^W", "")
-
 reg_det_lose <- select(reg_det, -Wfgm, -Wfga, -Wfgm3, -Wfga3, -Wftm, -Wfta, -Wor, -Wdr, -Wast, -Wto, -Wstl, -Wblk, -Wpf, -Wteam, -Wscore, -Wloc)
-
 names(reg_det_lose) <- str_replace(names(reg_det_lose), pattern = "^L", "")
 
 out_reg_det <- rbind(reg_det_win, reg_det_lose)
@@ -102,12 +99,12 @@ proc_reg_det <- group_by(out_reg_det, Season, team) %>%
                   fgm=mean(fgm),
                    fga=mean(fga),
                    fg_pct=(fgm/fga),
+                   ft_pct=(ftm/fta),
+                   fg3_pct=(fgm3/fga3),
                    fgm3=mean(fgm3),
                    fga3=mean(fga3),
-                   fg3_pct=(fgm3/fga3),
                    ftm=mean(ftm),
                    fta=mean(fta),
-                   ft_pct=(ftm/fta),
                    or=mean(or),
                    dr=mean(dr),
                    ast=mean(ast),
@@ -145,8 +142,7 @@ tourney_test_model <- select(tourney_test_model, -Season, -team, -fg3_pct, -ft_p
 tourney_test_model <- tourney_test_model %>% rename(score=Wscore)
 
 ###### FEED INTO RANDOM FOREST MODEL
-
-tourney_test_model_results <- predict(object = m_rf3, newdata = tourney_test_model, type="prob")
+tourney_test_model_results <- predict(object = m_rf2, newdata = tourney_test_model, type="prob")
 
 ## each row in tourney_test_model is a win for the Ateam by default
 pred_outcome <- cbind(tourney_test_model, tourney_test_model_results)
@@ -155,5 +151,5 @@ pred_outcome <- cbind(tourney_test_model, tourney_test_model_results)
 ## count how many games the model predicted 'correctly' i.e. win >= 0.50
 table(pred_outcome$win>=0.505)/sum(table(pred_outcome$win))
 
-select(pred_outcome, Wscore, Lscore, loss, win) %>% head(50)
-
+simple_rf2 <- select(pred_outcome, Wscore, Lscore, loss, win)
+all_rf3 <- select(pred_outcome, Wscore, Lscore, loss, win)

@@ -12,8 +12,8 @@ http://www.espn.com/blog/statsinfo/post/_/id/130371/using-recent-history-to-pick
 # Source Data
  
 ```{r}
-sourcepath <- "C:/Users/Amy/Documents/GitHub/mm2017/scripts/"
-
+#sourcepath <- "C:/Users/Amy/Documents/GitHub/mm2017/scripts/"
+sourcepath <- "C:/Users/cflagg/Documents/GitHub/mm2017/scripts/"
 # 32 seconds to do all processing
 source(file = paste0(sourcepath,"proc_data.R"))
 
