@@ -21,6 +21,14 @@ seed_loser <- seed
 names(seed_loser) <- paste0("L_", names(seed_loser))
 seed_winner <- seed
 names(seed_winner) <- paste0("W_", names(seed_winner))
+
+tourney$key_winner <- paste0(tourney$Season,"_",tourney$Wteam)
+tourney$key_loser <- paste0(tourney$Season,"_",tourney$Lteam)
+
+tourney <- merge(tourney, seed_winner, by.x="key_winner", by.y="W_key")
+tourney <- merge(tourney, seed_loser, by.x="key_loser", by.y="L_key")
+
+tourney <- select(tourney, -W_Season, W_Seed, W_Team, L_Season, L_Seed, L_Team)
 ```
 
 ## FUNCTION: map pre-tourney results against actual tourney outcomes
@@ -38,9 +46,6 @@ names(seed_winner) <- paste0("W_", names(seed_winner))
 head(proc_reg)
 head(tourney)
 
-tourney$key_winner <- paste0(tourney$Season,"_",tourney$Wteam)
-tourney$key_loser <- paste0(tourney$Season,"_",tourney$Lteam)
-
 proc_reg$key_winner <- paste0(proc_reg$Season,"_",proc_reg$team)
 proc_reg$key_loser <- paste0(proc_reg$Season,"_",proc_reg$team)
 
@@ -53,11 +58,20 @@ names(proc_reg_loser) <- paste0("L_",names(proc_reg_loser))
 mod <- merge(tourney, proc_reg_winner,by.x="key_winner", by.y="W_key_winner")
 mod <- merge(mod, proc_reg_loser,by.x="key_loser", by.y="L_key_loser")
 ## add seeds
-mod <- merge(mod, seed_winner, by.x="W_key", by.y="W_key")
-mod <- merge(mod, seed_loser, by.x="L_key", by.y="L_key")
+# mod <- merge(mod, seed_winner, by.x="W_key", by.y="W_key")
+# mod <- merge(mod, seed_loser, by.x="L_key", by.y="L_key")
+
+mod$W_win_pct <- mod$W_totwin / (mod$W_totwin + mod$W_totloss)
+mod$W_win_pct_weighted <- mod$W_totwin_weight / (mod$W_totwin_weight + mod$W_totloss_weight)
+
+mod$L_win_pct <- mod$L_totwin / (mod$L_totwin + mod$L_totloss)
+mod$L_win_pct_weighted <- mod$L_totwin_weight / (mod$L_totwin_weight + mod$L_totloss_weight)
 ``` 
 
-# does the final rank predict better than the seed?
+# Exploratory: do the regular season stats work as better binary predictors than seed?
+
+* e.g. Model = (Better Seed > Worse Seed) ~ Game Outcome 
+* Do any of these metrics predict outcomes of tournament matches better over all games?
 
 ```{r}
 # ranks
@@ -80,6 +94,65 @@ tourney_compare <- function(data,val){
 tourney_compare(mod, "final_rank")
 tourney_compare(mod, "seedval")
 
-sapply(X = c("final_rank", "seedval"), FUN = tourney_compare, data = mod)
+# run every variable in regular_season_results + tourney_outcome data.frame
+ins <- names(mod[,c(20:49)])
+# genericize the names
+ins <- str_split_fixed(ins, "_", 2) #
+
+sapply(X = c(ins[,2], "seedval"), FUN = tourney_compare, data = mod)
+
+## do the systems break down over rounds? (Sweet 16)
+tourney_compare(filter(mod, Daynum %in% c(143, 144)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(143, 144)), "final_rank")
+
+# Seed is 53% correct in round 4 (Elite Eight) -- Rank is 58%
+tourney_compare(filter(mod, Daynum %in% c(145, 146)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(145, 146)), "final_rank")
+
+# Seed is 80% correct in round 5 (Final Four) -- Rank is 62.5%
+tourney_compare(filter(mod, Daynum %in% c(152)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(152)), "final_rank")
+
+# Seed is 84% correct in round 5 (Final Four) -- Rank is 58%
+tourney_compare(filter(mod, Daynum %in% c(154)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(154)), "final_rank")
 ```
+
+# Exploratory: Can Elo rank predict match outcomes better than seed for a given round?
+
+
+```{r}
+# convert day number to round number
+round_num <- function(x) {
+  switch(as.character(x), 
+         "134"="0",
+         "135"="0",
+         "136"="1",
+         "137"="1",
+         "138"="2",
+         "139"="2",
+         "143"="3",
+         "144"="3",
+         "145"="4",
+         "146"="4",
+         "152"="5",
+         "154"="6")}
+
+mod$round_number <- as.numeric(sapply(mod$Daynum, round_num))
+mod$Elo_result <- ifelse(mod$W_final_rank > mod$L_final_rank, 1, 0)
+mod$seed_result <- ifelse(mod$W_seedval < mod$L_seedval, 1, 0)
+
+ggplot(mod, aes(round_number, Elo_result)) + geom_point()
+
+```
+
+
+
+
+
+
+
+
+
+
 
