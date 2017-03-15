@@ -60,13 +60,11 @@ end <- Sys.time()
 varImpPlot(m_rf1)
 ```
 
-## Munge: Data for Logistic Model 
+## Munge: smaller model -- build function to run tournament matchups
 
 * 
 
-```{r}
 
-```
 
 ## Summarize: average stats per team for end of season
 

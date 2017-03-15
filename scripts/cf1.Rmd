@@ -28,7 +28,7 @@ team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 #seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
  
 tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
-tourney <- filter(tourney, Season %in% c(2002:2013))
+#tourney <- filter(tourney, Season %in% c(2002:2013))
  
 seeds <- read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE)
 
@@ -134,6 +134,9 @@ regrank$win_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)*1
 regrank$loss_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)*1
 
 ggplot(regrank, aes(win_weight, wdiff)) + geom_point()
+
+## fix this
+m_rf_weekly_ranks <- randomForest()
 ```
 
 ## Munge: Process Regular Season data e.g. 'Stack' the win and loss data frames to quickly count end of season statistics (e.g. wins and losses)
