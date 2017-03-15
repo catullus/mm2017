@@ -13,20 +13,25 @@ inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
 #inpath <- "C:/Users/cflagg/Documents/R_Projects/"
 
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
-reg <- filter(reg, Season %in% c(2002:2013))
+#reg <- filter(reg, Season %in% c(2002:2013))
 
 team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
 
 tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
-tourney <- filter(tourney, Season %in% c(2002:2013))
+#tourney <- filter(tourney, Season %in% c(2002:2013))
 
 seeds <- read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE)
+seed <- filter(seeds, Season %in% c(2002:2016))
+seed$key <- paste0(seed$Season,"_",seed$Team)
+seed$seedval <- as.numeric(str_extract(seed$Seed, "[0-9]{1,2}"))
+
+seed_loser <- seed
+names(seed_loser) <- paste0("L_", names(seed_loser))
+seed_winner <- seed
+names(seed_winner) <- paste0("W_", names(seed_winner))
 
 #head(reg)
-
-
-
 
 ## Function: calculate and munge weekly ranks -- pass function to ddply
 
@@ -75,24 +80,6 @@ ranker <- function(data){
   return(reg_weekly_ranks)
 }
 
-# 2008 is a problem with Week
-#out <- plyr::ddply(filter(reg, Season %in% c(2008)), .(Season), function(x) {ranker(x)})
-
-
-
-# Villanova is in top 5 for entire country (they won 2016 tourney)
-# #1 ranked Kansas made it to Final Four, lost to Villanova
-  # Miami FL is in top 15, and made it to Elite Eight
-# Maryland is in top 30, and made it to Elite Eight
-# Oregon is in top 3, and made it to Final Four
-# Oklahoma is in top 15 and made it to Final Four
-# Texas A&M made it to Elite Eight and is in top 20
-# Duke is in top 30, made it to Elite Eight
-# Syracuse only potential 'Dark Horse', made it to Final Four but was not Ranked Top 30 for 2016 season
-
-## Munge: Calculate ranks throughout season
-
-
 reg$wdiff <- reg$Wscore - reg$Lscore
 reg$ldiff <- reg$Lscore - reg$Wscore
 
@@ -105,19 +92,6 @@ regrank <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
 
 
 ## Explore: Winning_Team_Rank / Losing_Team_Rank ~ Score Differential per game
-
-# Do games with equal ranked teams result in smaller differences?
-# For the most part, higher ranked teams win much more
-# How many lower ranked teams beat higher ranked teams?
-# Teams to the left of the vertical red line = lower ranked teams beating higher ranked teams
-# Win differences seem to be smaller for lower ranked teams beating higher
-
-
-#(regrank, aes(Wteam_rank/Lteam_rank, wdiff)) + geom_point() + geom_vline(xintercept = 1, colour = "red")
-
-
-## Calculate: Weight Wins and Losses via the Wteam_rank and Lteam_rank
-
 
 ## WEIGHT ALG
 #head(regrank)
