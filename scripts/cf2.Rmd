@@ -1,0 +1,85 @@
+---
+title: "marchmadness2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+ 
+# Source Data
+ 
+```{r}
+sourcepath <- "C:/Users/Amy/Documents/GitHub/mm2017/scripts/"
+
+# 32 seconds to do all processing
+source(file = paste0(sourcepath,"proc_data.R"))
+
+seed <- filter(seeds, Season %in% c(2002:2013))
+seed$key <- paste0(seed$Season,"_",seed$Team)
+seed$seedval <- as.numeric(str_extract(seed$Seed, "[0-9]{1,2}"))
+
+seed_loser <- seed
+names(seed_loser) <- paste0("L_", names(seed_loser))
+seed_winner <- seed
+names(seed_winner) <- paste0("W_", names(seed_winner))
+```
+
+## FUNCTION: map pre-tourney results against actual tourney outcomes
+
+* i.e. can regular season stats become a binary predictor for tourney matchups? If so, which ones are the best? Best = >50% predictions correct
+* Assess binary outcomes e.g. does Wteam_rank > Lteam_rank = a win?
+* Does Wteam_3point_avg > Lteam_3point_avg
+* Predictors: 
+  * Seed
+* Rank
+* Win_pct
+* Win_pct_weighted
+
+```{r}
+head(proc_reg)
+head(tourney)
+
+tourney$key_winner <- paste0(tourney$Season,"_",tourney$Wteam)
+tourney$key_loser <- paste0(tourney$Season,"_",tourney$Lteam)
+
+proc_reg$key_winner <- paste0(proc_reg$Season,"_",proc_reg$team)
+proc_reg$key_loser <- paste0(proc_reg$Season,"_",proc_reg$team)
+
+proc_reg_winner <- proc_reg %>% ungroup %>% select(-key_loser, -Season, -team) 
+names(proc_reg_winner) <- paste0("W_",names(proc_reg_winner))
+proc_reg_loser <- proc_reg %>% ungroup %>% select(-key_winner, -Season, -team)
+names(proc_reg_loser) <- paste0("L_",names(proc_reg_loser))
+
+## merge winner and loser regular season data (proc_reg) to tournament results (tourney)
+mod <- merge(tourney, proc_reg_winner,by.x="key_winner", by.y="W_key_winner")
+mod <- merge(mod, proc_reg_loser,by.x="key_loser", by.y="L_key_loser")
+## add seeds
+mod <- merge(mod, seed_winner, by.x="W_key", by.y="W_key")
+mod <- merge(mod, seed_loser, by.x="L_key", by.y="L_key")
+``` 
+
+# does the final rank predict better than the seed?
+
+```{r}
+# ranks
+m1 <- table(mod$W_final_rank > mod$L_final_rank)
+m1r <- m1[2]/sum(m1)
+
+# seeds a 'lower' seed value (e.g. 1) should beat a 'higher' seed value (e.g. 16)
+m2 <- table(mod$W_seedval < mod$L_seedval)
+m2r <- m2[2]/sum(m2)
+table(mod$Daynum)
+
+tourney_compare <- function(data,val){
+  W_val <- paste0("W_",val)
+  L_val <- paste0("L_",val)
+  out <- table(data[,W_val] > data[,L_val])
+  r <- out[2]/sum(out)
+  return(r)
+}
+
+tourney_compare(mod, "final_rank")
+tourney_compare(mod, "seedval")
+
+sapply(X = c("final_rank", "seedval"), FUN = tourney_compare, data = mod)
+```
+

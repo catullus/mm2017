@@ -1,47 +1,38 @@
----
-title: "marchmadness2017"
-output:
-  pdf_document: default
-  html_document: default
----
- 
 
-```{r}
 library(plyr)
 library(dplyr)
 library(stringr)
-library(ggplot2)
 library(PlayerRatings)
 library(car)
 library(randomForest)
 library(tidyr)
 # library(gbm)
- 
+
 #inpath <- "C:/Users/jroberti/Git/mm2017/data/"
 inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
 #inpath <- "C:/Users/cflagg/Documents/R_Projects/"
- 
+
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
 reg <- filter(reg, Season %in% c(2002:2013))
 
 team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
-#seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
- 
+seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
+
 tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
 tourney <- filter(tourney, Season %in% c(2002:2013))
- 
+
 seeds <- read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE)
 
-head(reg)
- 
-```
+#head(reg)
+
+
 
 
 ## Function: calculate and munge weekly ranks -- pass function to ddply
 
-```{r}
-ranker <- function(data){
 
+ranker <- function(data){
+  
   # assign week of the year based on Daynum -- add year from 'Season'
   ## for the given day, assign the numeric week
   week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
@@ -87,21 +78,21 @@ ranker <- function(data){
 # 2008 is a problem with Week
 #out <- plyr::ddply(filter(reg, Season %in% c(2008)), .(Season), function(x) {ranker(x)})
 
-```
 
-* Villanova is in top 5 for entire country (they won 2016 tourney)
-* #1 ranked Kansas made it to Final Four, lost to Villanova
-* Miami FL is in top 15, and made it to Elite Eight
-* Maryland is in top 30, and made it to Elite Eight
-* Oregon is in top 3, and made it to Final Four
-* Oklahoma is in top 15 and made it to Final Four
-* Texas A&M made it to Elite Eight and is in top 20
-* Duke is in top 30, made it to Elite Eight
-* Syracuse only potential 'Dark Horse', made it to Final Four but was not Ranked Top 30 for 2016 season
+
+# Villanova is in top 5 for entire country (they won 2016 tourney)
+# #1 ranked Kansas made it to Final Four, lost to Villanova
+  # Miami FL is in top 15, and made it to Elite Eight
+# Maryland is in top 30, and made it to Elite Eight
+# Oregon is in top 3, and made it to Final Four
+# Oklahoma is in top 15 and made it to Final Four
+# Texas A&M made it to Elite Eight and is in top 20
+# Duke is in top 30, made it to Elite Eight
+# Syracuse only potential 'Dark Horse', made it to Final Four but was not Ranked Top 30 for 2016 season
 
 ## Munge: Calculate ranks throughout season
 
-```{r}
+
 reg$wdiff <- reg$Wscore - reg$Lscore
 reg$ldiff <- reg$Lscore - reg$Wscore
 
@@ -111,34 +102,34 @@ regrank <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
 #end <- Sys.time()
 #end-start
 
-```
+
 
 ## Explore: Winning_Team_Rank / Losing_Team_Rank ~ Score Differential per game
 
-* Do games with equal ranked teams result in smaller differences?
-  * For the most part, higher ranked teams win much more
-* How many lower ranked teams beat higher ranked teams?
-  * Teams to the left of the vertical red line = lower ranked teams beating higher ranked teams
-  * Win differences seem to be smaller for lower ranked teams beating higher
+# Do games with equal ranked teams result in smaller differences?
+# For the most part, higher ranked teams win much more
+# How many lower ranked teams beat higher ranked teams?
+# Teams to the left of the vertical red line = lower ranked teams beating higher ranked teams
+# Win differences seem to be smaller for lower ranked teams beating higher
 
-```{r}
-ggplot(regrank, aes(Wteam_rank/Lteam_rank, wdiff)) + geom_point() + geom_vline(xintercept = 1, colour = "red")
-```
+
+#(regrank, aes(Wteam_rank/Lteam_rank, wdiff)) + geom_point() + geom_vline(xintercept = 1, colour = "red")
+
 
 ## Calculate: Weight Wins and Losses via the Wteam_rank and Lteam_rank
 
-```{r}
-## WEIGHT ALG
-head(regrank)
-regrank$win_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)*1
-regrank$loss_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)*1
 
-ggplot(regrank, aes(win_weight, wdiff)) + geom_point()
-```
+## WEIGHT ALG
+#head(regrank)
+regrank$win_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)#1
+regrank$loss_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)#1
+
+#(regrank, aes(win_weight, wdiff)) + geom_point()
+
 
 ## Munge: Process Regular Season data e.g. 'Stack' the win and loss data frames to quickly count end of season statistics (e.g. wins and losses)
 
-```{r}
+
 wreg <- select(regrank, Season, Daynum, Wteam, Wscore, Wteam_rank, Wloc, Numot, wdiff, win_weight, Week) %>% rename(team=Wteam,score=Wscore,loc=Wloc,diff=wdiff, weight=win_weight, rank=Wteam_rank)
 lreg <- select(regrank, Season, Daynum, Lteam, Lscore, Lteam_rank, Wloc, Numot, ldiff, loss_weight, Week) %>% rename(team=Lteam,score=Lscore,loc=Wloc,diff=ldiff, weight=loss_weight, rank=Lteam_rank)
 outreg <- rbind(wreg,lreg)
@@ -160,14 +151,14 @@ proc_reg <- group_by(outreg, Season, team) %>%
                    score_sd=sd(score),
                    wdiff_sd=sd(ifelse(diff>0, as.numeric(diff),0)),
                    ldiff_sd=sd(ifelse(diff<0, as.numeric(diff),0))
-                   )
+  )
 
-#head(proc_reg)
-```
+##head(proc_reg)
+
 
 ### Calculate: Determine end of season performance
 
-```{r}
+
 ## how to pull the last N number of games
 season_end_wins <- outreg %>% 
   group_by(Season, team) %>% 
@@ -177,10 +168,10 @@ season_end_wins <- outreg %>%
   summarize(last6_win=sum(str_count(outcome, "win")))
 
 season_end_wins$key <- paste0(season_end_wins$Season,"_",season_end_wins$team)
-```
 
 
-```{r}
+
+
 tourney$wdiff <- tourney$Wscore - tourney$Lscore
 tourney$ldiff <- tourney$Lscore - tourney$Wscore
 
@@ -200,16 +191,15 @@ proc_tourn <- group_by(outtourney, Season, team) %>%
                    score_sd=sd(score),
                    wdiff_sd=sd(ifelse(diff>0, as.numeric(diff),0)),
                    ldiff_sd=sd(ifelse(diff<0, as.numeric(diff),0))
-                   )
+  )
 
 ## rename "T_" == tournament data
 names(proc_tourn) <- paste0("T_",names(proc_tourn))
-```
 
 
 ## Execute a merge so we can model tourney_outcomes ~ reg_season_data
 
-```{r}
+
 ## make keys to match the data between the two tables
 proc_reg$key <- paste0(proc_reg$Season,"_",proc_reg$team)
 proc_tourn$key <- paste0(proc_tourn$T_Season,"_",proc_tourn$T_team)
@@ -221,28 +211,9 @@ model_dat <- merge(model_dat, season_end_wins)
 
 model_dat$win_pct <- model_dat$totwin / (model_dat$totwin + model_dat$totloss)
 model_dat$win_pct_weighted <- model_dat$totwin_weight / (model_dat$totwin_weight + model_dat$totloss_weight)
-```
+
 
 ## EDA via Scatterplot Matrix
 
-```{r}
-car::scatterplotMatrix(~T_totwin+final_rank+rank_sd+win_pct+win_pct_weighted+score_avg+score_sd+wdiff_sd+last6_win, data = model_dat)
-```
 
-## FUNCTION: map pre-tourney results against actual tourney outcomes
 
-* i.e. can regular season stats become a binary predictor for tourney matchups? If so, which ones are the best? Best = >50% predictions correct
-* Assess binary outcomes e.g. does Wteam_rank > Lteam_rank = a win?
-* Does Wteam_3point_avg > Lteam_3point_avg
-* Predictors: 
-  * Seed
-  * Rank
-  * Win_pct
-  * Win_pct_weighted
-
-```{r}
-
-head(proc_reg)
-head(tourney)
-
-```
