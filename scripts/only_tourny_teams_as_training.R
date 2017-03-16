@@ -21,6 +21,11 @@ seeds <- read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE)
 seeds2017 <- filter(seeds, Season==2017)
 seeds2017$key <- paste0(seeds2017$Season,"_",seeds2017$Team)
 
+sourcepath <- "C:/Users/cflagg/Documents/GitHub/mm2017/scripts/"
+# 32 seconds to do all processing
+source(file = paste0(sourcepath,"proc_data.R"))
+
+
 
 ## modify_reg_det with new statistics here
 head(reg_det)
@@ -130,7 +135,7 @@ h2h_reg_det$intourneyKey <- paste0(h2h_reg_det$Season,"_",h2h_reg_det$team)
 
 h2h_reg_det <- merge(h2h_reg_det, proc_reg, by.x="intourneyKey", by.y="key")
 
-h2h_tourney <- filter(h2h_reg_det, intourneyKey %in% intourney, Season %in% 2002:2016)
+h2h_tourney <- filter(h2h_reg_det, intourneyKey %in% intourney, Season.y %in% 2002:2016)
 ###### run model e.g. 
 mrf1 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr, data=na.omit(h2h_tourney));mrf1
 varImpPlot(mrf1)
