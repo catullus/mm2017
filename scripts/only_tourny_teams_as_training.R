@@ -135,13 +135,13 @@ h2h_tourney <- filter(h2h_reg_det, intourneyKey %in% intourney, Season %in% 2002
 mrf1 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr, data=na.omit(h2h_tourney));mrf1
 varImpPlot(mrf1)
 
-mrf1_mini <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg_pct, data=filter(h2h_tourney, Season.x %in% c(2015:2016)))
+#mrf1_mini <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg_pct, data=filter(h2h_tourney, Season.x %in% c(2015:2016)))
 
-mrf2 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2
-varImpPlot(mrf2)
+#mrf2 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct#+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2
+#varImpPlot(mrf2)
 
-mrf3 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank+Aast+Bast+Ato+Bto+Astl+Bstl+Ablk+Bblk+Apf+Bpf, data=na.omit(h2h_tourney));mrf3
-varImpPlot(mrf3)
+##mrf3 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank+Aast+Bast+Ato+Bto+Astl+Bstl+Ablk+Bblk+Apf+Bpf, data=na.omit(h2h_tourney));mrf3
+#varImpPlot(mrf3)
 
 
 #################################################################################################
@@ -219,7 +219,7 @@ tournament_match <- join_seasonEnd_tourney(seasonEnd_filter, tourney)
 #################################################################################################
 ## Assess Model params = (model_object, test_data)
 ###### FEED INTO RANDOM FOREST MODEL
-pred_outcome1 <- predict(mrf3, newdata=tournament_match, type="prob")
+pred_outcome1 <- predict(mrf1, newdata=tournament_match, type="prob")
 pred_outcome1 <- cbind(tournament_match, pred_outcome1)
 table(pred_outcome1$win>=0.50)/sum(table(pred_outcome1$win))
 
@@ -247,8 +247,8 @@ seasonEnd_2017 <- filter(seasonEnd, Season==2017, key2017 %in% unique_teams$filt
 
 tourney2017_input <- join_seasonEnd_tourney(end_season_data = seasonEnd_2017, tourney_matchups = matchups_2017)
 
-pred_tourney_outcome <- predict(mrf2, newdata=tourney2017_input, type="prob")
+pred_tourney_outcome <- predict(mrf1, newdata=tourney2017_input, type="prob")
 
 total_outcome <- cbind(pred_tourney_outcome, tourney2017_input)
 
-write.csv(total_outcome, paste0(inpath,"cf_preds_mrf2.csv"), na="")
+write.csv(total_outcome, paste0(inpath,"cf_preds_mrf1.csv"), na="")
