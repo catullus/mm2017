@@ -10,7 +10,7 @@ library(tidyr)
 
 #inpath <- "C:/Users/jroberti/Git/mm2017/data/"
 #inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
-inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"
+inpath <- "~/GitHub/mm2017/data/"
 
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
 #reg <- filter(reg, Season %in% c(2002:2013))

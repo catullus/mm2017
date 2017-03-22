@@ -17,7 +17,7 @@ reg_det<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsF
 #tourney.details<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
 seeds <- read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE)
-
+teams <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 seeds2017 <- filter(seeds, Season==2017)
 seeds2017$key <- paste0(seeds2017$Season,"_",seeds2017$Team)
 
@@ -54,7 +54,6 @@ reg_det$Wposs.eff<-reg_det$Wposs.action/reg_det$Wposs
 reg_det$Lposs<-reg_det$Lfga2+reg_det$Lfga3+reg_det$Lfta+reg_det$Ldr+reg_det$Lto
 reg_det$Lposs.action<-(reg_det$Lfgm2+reg_det$Lfgm3+reg_det$Lftm-(reg_det$Lto*(reg_det$Wshoot.prct/100))+(reg_det$Ldr*(reg_det$Lshoot.prct/100)))
 reg_det$Lposs.eff<-reg_det$Lposs.action/reg_det$Lposs
-
 
 ### ADD RATINGS
 week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
@@ -142,7 +141,7 @@ varImpPlot(mrf1)
 
 #mrf1_mini <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg_pct, data=filter(h2h_tourney, Season.x %in% c(2015:2016)))
 
-#mrf2 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct#+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2
+mrf2 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2
 #varImpPlot(mrf2)
 
 ##mrf3 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank+Aast+Bast+Ato+Bto+Astl+Bstl+Ablk+Bblk+Apf+Bpf, data=na.omit(h2h_tourney));mrf3
@@ -255,5 +254,11 @@ tourney2017_input <- join_seasonEnd_tourney(end_season_data = seasonEnd_2017, to
 pred_tourney_outcome <- predict(mrf1, newdata=tourney2017_input, type="prob")
 
 total_outcome <- cbind(pred_tourney_outcome, tourney2017_input)
+
+#### OUTPUT  RESULTS TO FILE
+resm <- merge(total_outcome, teams, by.x="Wteam", by.y="Team_Id")
+resm <- merge(resm, teams, by.x="Lteam", "Team_Id")
+
+resm <- dplyr::rename(resm, win_team=Team_Name.x, lose_team=Team_Name.y)
 
 write.csv(total_outcome, paste0(inpath,"cf_preds_mrf1.csv"), na="")
