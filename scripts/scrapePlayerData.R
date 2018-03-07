@@ -57,5 +57,5 @@ getStatsNCAA<-function(playerID=NULL){
 }
 
 #run the script:
-playerSeq<-seq(11001,12000)
+playerSeq<-seq(12001,13000)
 lapply(playerSeq, function(x) getStatsNCAA(playerID = x))
