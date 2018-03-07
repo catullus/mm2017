@@ -17,7 +17,7 @@ reg_det<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsF
 #tourney.details<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
 seeds <- read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE)
-
+teams <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 seeds2017 <- filter(seeds, Season==2017)
 seeds2017$key <- paste0(seeds2017$Season,"_",seeds2017$Team)
 
@@ -63,7 +63,10 @@ reg_det$Wposs.eff<-reg_det$Wposs.action/reg_det$Wposs
 reg_det$Lposs<-reg_det$Lfga2+reg_det$Lfga3+reg_det$Lfta+reg_det$Ldr+reg_det$Lto
 reg_det$Lposs.action<-(reg_det$Lfgm2+reg_det$Lfgm3+reg_det$Lftm-(reg_det$Lto*(reg_det$Wshoot.prct/100))+(reg_det$Ldr*(reg_det$Lshoot.prct/100)))
 reg_det$Lposs.eff<-reg_det$Lposs.action/reg_det$Lposs
+<<<<<<< HEAD
 #################################################################################################s
+=======
+>>>>>>> f522533f07d11e127b85802f6b93c42ccdf13514
 
 ### ADD RATINGS
 week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
@@ -153,7 +156,7 @@ varImpPlot(mrf1)
 
 #mrf1_mini <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg_pct, data=filter(h2h_tourney, Season.x %in% c(2015:2016)))
 
-#mrf2 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct#+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2
+mrf2 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2
 #varImpPlot(mrf2)
 
 mrf2_diff <- randomForest(diff~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2_diff
@@ -287,6 +290,16 @@ table(pred_outcome2$pred_outcome2>0)/nrow(pred_outcome2)
 # how off was the predicted spread? a difference of 0 = a 100% correct prediction
 hist(pred_outcome2$wdiff - abs(pred_outcome2$pred_outcome2))
 
+<<<<<<< HEAD
 pred_outcome2$pred_diff <- pred_outcome2$wdiff - abs(pred_outcome2$pred_outcome2)
 table(pred_outcome2$pred_diff < 5)
 #################################################################################################
+=======
+#### OUTPUT  RESULTS TO FILE
+resm <- merge(total_outcome, teams, by.x="Wteam", by.y="Team_Id")
+resm <- merge(resm, teams, by.x="Lteam", "Team_Id")
+
+resm <- dplyr::rename(resm, win_team=Team_Name.x, lose_team=Team_Name.y)
+
+write.csv(total_outcome, paste0(inpath,"cf_preds_mrf1.csv"), na="")
+>>>>>>> f522533f07d11e127b85802f6b93c42ccdf13514

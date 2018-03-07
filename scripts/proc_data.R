@@ -9,8 +9,13 @@ library(tidyr)
 # library(gbm)
 
 #inpath <- "C:/Users/jroberti/Git/mm2017/data/"
+<<<<<<< HEAD
 inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
 #inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"
+=======
+#inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
+inpath <- "~/GitHub/mm2017/data/"
+>>>>>>> f522533f07d11e127b85802f6b93c42ccdf13514
 
 reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
 #reg <- filter(reg, Season %in% c(2002:2013))
