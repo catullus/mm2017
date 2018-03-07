@@ -9,10 +9,10 @@ library(tidyr)
 
 # https://www.kaggle.com/ajniggles/march-machine-learning-mania-2017/logistic-regression-and-game-round-calculator
 
-#sourcepath <- "C:/Users/Amy/Documents/GitHub/mm2017/scripts/"
-
-#inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
-inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"
+sourcepath <- "C:/Users/Amy/Documents/GitHub/mm2017/scripts/"
+#sourcepath <- "C:/Users/cflagg/Documents/GitHub/mm2017/scripts/"
+inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
+#inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"
 reg_det<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 #tourney.details<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 tourney <- read.csv(paste0(inpath, "TourneyCompactResults.csv"), stringsAsFactors = FALSE)
@@ -21,7 +21,6 @@ seeds <- read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE)
 seeds2017 <- filter(seeds, Season==2017)
 seeds2017$key <- paste0(seeds2017$Season,"_",seeds2017$Team)
 
-sourcepath <- "C:/Users/cflagg/Documents/GitHub/mm2017/scripts/"
 # 32 seconds to do all processing
 source(file = paste0(sourcepath,"proc_data.R"))
 
@@ -36,6 +35,17 @@ reg_det$Wft_pct<- (reg_det$Wftm/reg_det$Wfta)
 reg_det$Wfg3_pct<- (reg_det$Wfgm3/reg_det$Wfga3)
 reg_det$Lft_pct<- (reg_det$Lftm/reg_det$Lfta)
 reg_det$Lfg3_pct<- (reg_det$Lfgm3/reg_det$Lfga3)
+
+## forced turnovers -- defensive rating
+reg_det$Wforced_to <- reg_det$Lto
+reg_det$Lforced_to <- reg_det$Wto
+reg_det$Wpts_allow <- reg_det$Lscore
+reg_det$Lpts_allow <- reg_det$Wscore
+
+## response vars
+reg_det$Wdiff <- reg_det$Wscore - reg_det$Lscore
+reg_det$Ldiff <- reg_det$Lscore - reg_det$Wscore
+
 #################################################################################################
 ## Efficiency
 #multiply the turnovers by the shooting % of L team to get a more accurate picture of how detrimental the turnovers are.  Also, on the other end, multiple the defensive rbs by the shooting percentage of W team to see how advantageous the defensive rbs are...
@@ -45,7 +55,6 @@ reg_det$Wfgm2<-reg_det$Wfgm-reg_det$Wfgm3
 reg_det$Lfga2<-reg_det$Lfga-reg_det$Lfga3
 #2-pointers made:
 reg_det$Lfgm2<-reg_det$Lfgm-reg_det$Lfgm3
-
 reg_det$Wposs<-reg_det$Wfga2+reg_det$Wfga3+reg_det$Wfta+reg_det$Wto   
 reg_det$Wshoot.prct<-reg_det$Wfgm2+reg_det$Wfgm3+reg_det$Wftm/reg_det$Wfga2+reg_det$Wfga3+reg_det$Wfta
 reg_det$Lshoot.prct<-reg_det$Lfgm2+reg_det$Lfgm3+reg_det$Lftm/reg_det$Lfga2+reg_det$Lfga3+reg_det$Lfta
@@ -54,7 +63,7 @@ reg_det$Wposs.eff<-reg_det$Wposs.action/reg_det$Wposs
 reg_det$Lposs<-reg_det$Lfga2+reg_det$Lfga3+reg_det$Lfta+reg_det$Ldr+reg_det$Lto
 reg_det$Lposs.action<-(reg_det$Lfgm2+reg_det$Lfgm3+reg_det$Lftm-(reg_det$Lto*(reg_det$Wshoot.prct/100))+(reg_det$Ldr*(reg_det$Lshoot.prct/100)))
 reg_det$Lposs.eff<-reg_det$Lposs.action/reg_det$Lposs
-
+#################################################################################################s
 
 ### ADD RATINGS
 week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
@@ -83,7 +92,6 @@ reg_detm <- merge(reg_detm, regrank_l, by.x="weekkey_loser", by.y="weekkey_loser
 reg_detm <- select(reg_detm, -weekkey_winner)
 
 
-
 #reg_detm <- str_replace(names(reg_detm), ".x", "")
 #reg_detm <- str_replace(names(reg_detm), ".y", "")
 #################################################################################################
@@ -101,8 +109,10 @@ prep_reg_det_model <- function(data, model_vars){
   names(reg_det_win) <- str_replace(names(reg_det_win), pattern = "^L", "B")
   # vars_a <- 
   reg_det_win <-  select(reg_det_win, -Bteam, -Ascore, -Bscore, -Aloc, -Numot) %>% rename(team=Ateam)# %>% select(vars)
+  # response vars
   reg_det_win$win <- "win"
   reg_det_win$win_num <- 1
+  reg_det_win$diff <- reg_det_win$Adiff
   
   ## losing teams
   reg_det_lose <- data
@@ -110,8 +120,10 @@ prep_reg_det_model <- function(data, model_vars){
   names(reg_det_lose) <- str_replace(names(reg_det_lose), pattern = "^W", "B")
   ## the second team, i.e. the losing team, inadvertently gets changed because of the str_replace above
   reg_det_lose <- select(reg_det_lose, -Bteam, -Ascore,-Bscore, -Bloc, -Numot) %>% rename(team=Ateam)# %>% select(vars)
+  ## response vars
   reg_det_lose$win <- "loss"
   reg_det_lose$win_num <- 0
+  reg_det_lose$diff <- reg_det_lose$Adiff
   ## combine
   h2h_reg_det <- rbind(reg_det_win, reg_det_lose)
   return(h2h_reg_det)
@@ -122,7 +134,6 @@ prep_reg_det_model <- function(data, model_vars){
 #prep_reg_det_model(reg_det, c("Wfg_pct", "Lfg_pct"))
 
 h2h_reg_det <- prep_reg_det_model(reg_detm, mymod);head(h2h_reg_det)
-
 proc_reg$key <- paste0(proc_reg$Season, "_", proc_reg$team)
 
 ###### FILTER TO TOURNAMENT TEAMS ONLY
@@ -137,13 +148,16 @@ h2h_reg_det <- merge(h2h_reg_det, proc_reg, by.x="intourneyKey", by.y="key")
 
 h2h_tourney <- filter(h2h_reg_det, intourneyKey %in% intourney, Season.y %in% 2002:2016)
 ###### run model e.g. 
-mrf1 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr, data=na.omit(h2h_tourney));mrf1
+#mrf1 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr, data=na.omit(h2h_tourney));mrf1
 varImpPlot(mrf1)
 
 #mrf1_mini <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg_pct, data=filter(h2h_tourney, Season.x %in% c(2015:2016)))
 
 #mrf2 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct#+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2
 #varImpPlot(mrf2)
+
+mrf2_diff <- randomForest(diff~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Bfg_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank, data=na.omit(h2h_tourney));mrf2_diff
+varImpPlot(mrf2_diff)
 
 ##mrf3 <- randomForest(as.factor(win)~Aposs.eff+Bposs.eff+Afg_pct+Bfg_pct+Afg3_pct+Bfg3_pct+Aft_pct+Bft_pct+Aor+Bor+Adr+Bdr+Ateam_rank+Bteam_rank+Aast+Bast+Ato+Bto+Astl+Bstl+Ablk+Bblk+Apf+Bpf, data=na.omit(h2h_tourney));mrf3
 #varImpPlot(mrf3)
@@ -152,10 +166,10 @@ varImpPlot(mrf1)
 #################################################################################################
 ## feed this processed season results (i.e. lines of team statistics up to line 46 above)
 prep_season_end_stats <- function(data){
-  reg_det_win <- select(data, -Lfg_pct, -Lft_pct,-Lfg3_pct,-Lposs, -Lposs.action, -Lposs.eff, -Lshoot.prct, -Lfgm, -Lfga, -Lfgm3, -Lfga3, -Lftm, -Lfta, -Lor, -Ldr, -Last, -Lto, -Lstl, -Lblk, -Lpf, -Lteam, -Lscore, -Wloc, -Lfga2, -Lfgm2, -Lteam_rank)
+  reg_det_win <- select(data, -Lfg_pct, -Lft_pct,-Lfg3_pct,-Lposs, -Lposs.action, -Lposs.eff, -Lshoot.prct, -Lfgm, -Lfga, -Lfgm3, -Lfga3, -Lftm, -Lfta, -Lor, -Ldr, -Last, -Lto, -Lstl, -Lblk, -Lpf, -Lteam, -Lscore, -Wloc, -Lfga2, -Lfgm2, -Lteam_rank, -Ldiff)
   names(reg_det_win) <- str_replace(names(reg_det_win), pattern = "^W", "")
   
-  reg_det_lose <- select(data, -Wfg_pct, -Wft_pct, -Wfg3_pct,  -Wposs, -Wposs.action,-Wposs.eff,-Wshoot.prct,-Wfgm, -Wfga, -Wfgm3, -Wfga3, -Wftm, -Wfta, -Wor, -Wdr, -Wast, -Wto, -Wstl, -Wblk, -Wpf, -Wteam, -Wscore, -Wloc, -Wfga2, -Wfgm2, -Wteam_rank)
+  reg_det_lose <- select(data, -Wfg_pct, -Wft_pct, -Wfg3_pct,  -Wposs, -Wposs.action,-Wposs.eff,-Wshoot.prct,-Wfgm, -Wfga, -Wfgm3, -Wfga3, -Wftm, -Wfta, -Wor, -Wdr, -Wast, -Wto, -Wstl, -Wblk, -Wpf, -Wteam, -Wscore, -Wloc, -Wfga2, -Wfgm2, -Wteam_rank, -Wdiff)
   names(reg_det_lose) <- str_replace(names(reg_det_lose), pattern = "^L", "")
   
   # stack again
@@ -166,6 +180,7 @@ prep_season_end_stats <- function(data){
     arrange(Daynum) %>% 
     dplyr::summarise(scores=mean(score),
                      score_sd=sd(score, na.rm=TRUE),
+                     diff=mean(diff),
                      final_rank=tail(team_rank, 1), ## this is new
                      poss.ef=mean(poss.eff),
                      fgm=mean(fgm),
@@ -221,15 +236,7 @@ tournament_match <- join_seasonEnd_tourney(seasonEnd_filter, tourney)
 
 # join ranks here
 
-#################################################################################################
-## Assess Model params = (model_object, test_data)
-###### FEED INTO RANDOM FOREST MODEL
-pred_outcome1 <- predict(mrf1, newdata=tournament_match, type="prob")
-pred_outcome1 <- cbind(tournament_match, pred_outcome1)
-table(pred_outcome1$win>=0.50)/sum(table(pred_outcome1$win))
 
-table(tourney$Season)
-#################################################################################################
 ### THIS BECOMES 'tourney_matchups' in the join_seasonEnd_tourney function
 seeds2017
 seeds2017$Team2 <- seeds2017$Team
@@ -253,7 +260,33 @@ seasonEnd_2017 <- filter(seasonEnd, Season==2017, key2017 %in% unique_teams$filt
 tourney2017_input <- join_seasonEnd_tourney(end_season_data = seasonEnd_2017, tourney_matchups = matchups_2017)
 
 pred_tourney_outcome <- predict(mrf1, newdata=tourney2017_input, type="prob")
+pred_tourney_outcome_diff <- predict(mrf2_diff, newdata=tourney2017_input)
 
 total_outcome <- cbind(pred_tourney_outcome, tourney2017_input)
+total_outcome_diff <- cbind(pred_tourney_outcome_diff, tourney2017_input)
 
-write.csv(total_outcome, paste0(inpath,"cf_preds_mrf1.csv"), na="")
+#write.csv(total_outcome, paste0(inpath,"cf_preds_mrf1.csv"), na="")
+write.csv(total_outcome_diff, paste0(inpath,"cf_preds_mrf2_diffs.csv"), na="")
+
+
+
+#################################################################################################
+## Assess Model params = (model_object, test_data)
+###### FEED INTO RANDOM FOREST MODEL
+pred_outcome1 <- predict(mrf1, newdata=tournament_match, type="prob")
+pred_outcome1 <- cbind(tournament_match, pred_outcome1)
+table(pred_outcome1$win>=0.50)/sum(table(pred_outcome1$win))
+
+table(tourney$Season)
+
+pred_outcome2 <- predict(mrf2_diff, newdata=tournament_match)
+pred_outcome2 <- cbind(tournament_match,pred_outcome2)
+# every row is a win, if the pred_outcome2 is positive, then it is a correct prediction of the spread
+table(pred_outcome2$pred_outcome2>0)/nrow(pred_outcome2)
+
+# how off was the predicted spread? a difference of 0 = a 100% correct prediction
+hist(pred_outcome2$wdiff - abs(pred_outcome2$pred_outcome2))
+
+pred_outcome2$pred_diff <- pred_outcome2$wdiff - abs(pred_outcome2$pred_outcome2)
+table(pred_outcome2$pred_diff < 5)
+#################################################################################################
