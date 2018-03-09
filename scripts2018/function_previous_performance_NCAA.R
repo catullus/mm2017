@@ -3,7 +3,7 @@
 # t1 <- previous_perf(select(gstats, scored, Last.Name, First.Name, gameid, week, Home.Away, Position, Goals, Shots, ShotsOnGoal), grouper = "Last.Name", width = 3, exclude = c("Last.Name", "First.Name","Position", "Home.Away", "Opponent", "gameid","week", "scored", "X"))
 
 ### function_previous_perf_v5
-### wrapper function 
+### wrapper function -- calls pp() to reduce amount of code and object passing
 previous_perf <- function(data, grouper="Last.Name", arranger = "week", exclude = c("Last.Name", "First.Name","Position", "Home.Away", "Opponent", "gameid","week", "scored", "X"), func = mean, width = 3, ...){
     ## data = numeric columns you want to analyze/summarise, includes the factor/descriptive columns as exclude
     ## grouper = variable you want to split data by
