@@ -229,7 +229,81 @@ length(which(game.simulation==2))
 
 
 m1.prct <- lm(N.win ~ ., data = combinedStats)
+
 summary(m1.prct)
+
+################ GLM FIT #################
+# grab all the rank data for the last week of each season
+finalRanksLose<-regrank[which(regrank$Week==15),c("weekkey_loser","Lteam_rank","Daynum","Season")]
+names(finalRanksLose)<-c("Team","rank","Daynum","Season")
+finalRanksWin<-regrank[which(regrank$Week==15),c("weekkey_winner","Wteam_rank","Daynum","Season")]
+names(finalRanksWin)<-c("Team","rank","Daynum","Season")
+#put all these into 1 df:
+finalRankAll <- rbind(finalRanksLose, finalRanksWin)
+#combine weekkey names with daynum:
+finalRanks.df<-finalRankAll %>% group_by(Team,Season)  %>% arrange(Daynum) %>% slice(n())
+#remove the week_ID on the teams columns:
+finalRanks.df$Team<-substr(finalRanks.df$Team,0,4)
+#merge these with combined Stats:
+NCAA.df<-merge(finalRanks.df,combinedStats,by=intersect(names(finalRanks.df),names(combinedStats)))
+#get team means of all stats for each team by season using Regrank data:
+#remove winning team location and Week (Wloc,Week)for the time being
+regrank<-regrank[,-grep("Wloc|Week",names(regrank))]
+#find all "winning team columns"
+winningTeamStats<-regrank[,grep("W.*|Season",names(regrank))]
+losingTeamStats<-regrank[,grep("L.*|Week|Season",names(regrank))]
+#for both, make sure the names are identical, so remove the "W" and "L" for each df respectively:
+names(winningTeamStats)<-gsub("^W","",names(winningTeamStats))
+names(losingTeamStats)<-gsub("^L","",names(losingTeamStats))
+#rbind these DFs together:
+finalStatsAll <- rbind(winningTeamStats, losingTeamStats)
+#get team averages of numeric columns:
+#meanSeasonStats.df<-finalStatsAll %>% group_by(team,Season)  %>% mean(or.pct,na.rm=T)
+#d %>% group_by(Name) %>% summarise_at(vars(-Month), funs(mean(., na.rm=TRUE)))
+meanSeasonStats.df<-aggregate(finalStatsAll[, -c(1,2)], list(finalStatsAll$team,finalStatsAll$Season), mean)
+#ddply(finalStatsAll, .(team,Season), summarize,  mean(team_rank))
+
+# 
+#  numericCols<-unname(which(unlist(apply(finalStatsAll, 2, function(x) is.numeric(x)))))
+# meanSeasonStats.df<-aggregate(. ~ c(team,Season), finalStatsAll[numericCols], mean)
+# 
+
+#create Losing team's location (so data frames are equal):
+# losingTeamStats$Lloc<-rep("N",nrow(losingTeamStats)) #prefill with neutral court
+# losingTeamStats$Lloc[grep("H",winningTeamStats$Wloc)]<-"A" #if winning team was home put losing team as away
+# losingTeamStats$Lloc[grep("A",winningTeamStats$Wloc)]<-"H"
+                     
+avgStats<-finalRankAll <- rbind(winningTeamStats, losingTeamStats)
+
+finalRankAll <- plyr::rbind.fill(winningTeamStats, losingTeamStats)
+
+aggregate(regrank[,3:4], list(d$Name), mean)
+
+
+
+
+
+library(pscl)
+train <- combinedStats[1:round(nrow(combinedStats)*0.725,0),] #make training data
+test <- combinedStats[(round(nrow(combinedStats)*0.725,0)+1):nrow(combinedStats),] #make test data
+fit<-glm(N.win~.,data=train)
+summary(fit) # display results
+anova(fit, test="Chisq") #ANOVA 
+pR2(fit) # assess the fit of the model
+library(ROCR)
+p <- predict(fit, newdata=test)
+pr <- prediction(p, test$N.win)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+
+confint(fit) # 95% CI for the coefficients
+exp(coef(fit)) # exponentiated coefficients
+exp(confint(fit)) # 95% CI for exponentiated coefficients
+predict(fit, type="response") # predicted values
+residuals(fit, type="deviance") # residuals
+
+
 
 #weight the data by elo ranking:
 plot(density(regrank$Wposs.eff.wt.diff))
@@ -241,7 +315,7 @@ regrank$Wteam_rank_rat<-regrank$Wteam_rank/max(regrank$Wteam_rank)
 #still going to use the maximum elo ranking from W side for denomonator:
 regrank$Lteam_rank_rat<-regrank$Lteam_rank/max(regrank$Wteam_rank)
 #ranking differences:
-regrank$Wteam_rank_rat_diff<-regrank$Wteam_rank_rat-regrank$Lteam_rank_rat
+#regrank$Wteam_rank_rat_diff<-regrank$Wteam_rank_rat-regrank$Lteam_rank_rat
 #adjusted possession efficiency:
 regrank$Wposs.eff.adj<-regrank$Wposs.eff.wt*regrank$Wteam_rank_rat
 regrank$Lposs.eff.adj<-regrank$Lposs.eff.wt*regrank$Lteam_rank_rat
