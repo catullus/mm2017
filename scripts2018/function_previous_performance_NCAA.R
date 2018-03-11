@@ -4,7 +4,7 @@
 
 ### function_previous_perf_v5
 ### wrapper function -- calls pp() to reduce amount of code and object passing
-previous_perf <- function(data, grouper="Last.Name", arranger = "week", exclude = c("Last.Name", "First.Name","Position", "Home.Away", "Opponent", "gameid","week", "scored", "X"), func = mean, width = 3, ...){
+previous_perf <- function(data, grouper="team", arranger = "Daynum", exclude = c("Season", "Daynum", "loc", "win_loss"), func = mean, width = 3, ...){
     ## data = numeric columns you want to analyze/summarise, includes the factor/descriptive columns as exclude
     ## grouper = variable you want to split data by
     require(dplyr)
@@ -14,7 +14,7 @@ previous_perf <- function(data, grouper="Last.Name", arranger = "week", exclude 
     return(out_p)
 }
 
-pp <- function(data, width=3, func=mean, fill=NA, exclude = c("Last.Name", "First.Name","Position", "Home.Away", "Opponent", "gameid","week", "scored", "X"), ...){
+pp <- function(data, width=3, func=mean, fill=NA, exclude = c("Season", "Daynum", "loc", "win_loss"), ...){
     require(zoo)
     require(dplyr)
     # data = a data frame with meta-data and stats
