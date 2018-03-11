@@ -3,8 +3,6 @@
 # Avoid ranks
 # Make sure function works with NCAA data
 # Currently working on 2017 data so I avoid renaming 50+ columns (column name format changed in 2018)
-
-# The Flagg-Roberti MM Model
 library(plyr)
 library(dplyr)
 library(zoo)
@@ -14,10 +12,9 @@ library(car)
 library(randomForest)
 library(tidyr)
 
-
 #Open the datasets:
 if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
-    inpath <- "C:/Users/jroberti/Git/mm2017/data/"
+    inpath <- "C:/Users/jroberti/Git/mm2017/"
 } else if (length(list.files("C:/Users/cflagg/Documents/GitHub/mm2017/data/")) > 0 ) {
     inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/"   
 } else if (length(list.files("C:/Users/Amy/Documents/GitHub/mm2017/data/")) > 0) {
@@ -27,22 +24,25 @@ if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
 source(paste0(inpath, "/scripts2018/function_previous_performance_NCAA.R"))
 
 #### read detailed regular season results ####
-reg<-read.csv(paste0(inpath, "data/RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+reg <-read.csv(paste0(inpath, "data/RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+## arrange by lowest Wteam, as that is how kaggle wants the IDs arranged (lowest team first)
+reg <- dplyr::arrange(reg, Season, Daynum, Wteam, Lteam)
 team <- read.csv(paste0(inpath, "data/Teams.csv"), stringsAsFactors = FALSE)
+
+# create unique identifier for a game matchup e.g. "season_team1_team2"
+reg$gameID <- paste0(reg$Season, "_", reg$Wteam, "_", reg$Lteam)
 
 ## assign win/loss and total point diff
 reg$Wscore_diff <- reg$Wscore - reg$Lscore
 reg$Lscore_diff <- reg$Lscore - reg$Wscore
 
 ### give me one season for testing
-reg <- dplyr::filter(reg, Season == 2017)
-
-
+reg <- dplyr::filter(reg, Season == 2017) ## comment out or modify to expand data set
 
 #### rename "W" and "L" columns ####
-reg_winning_stats <-reg[,grep("W.*|Week|Season|Daynum", names(reg))]
+reg_winning_stats <-reg[,grep("W.*|Week|Season|Daynum|gameID", names(reg))]
 reg_winning_stats$win_loss <- "win"
-reg_losing_stats <-reg[,grep("L.*|Week|Season|Daynum|Wloc",names(reg))] ## location doesn't get picked up for this one
+reg_losing_stats <-reg[,grep("L.*|Week|Season|Daynum|Wloc|gameID",names(reg))] ## location doesn't get picked up for this one
 reg_losing_stats$win_loss <- "loss"
 
 names(reg_winning_stats)<-gsub("^W","",names(reg_winning_stats)) #remove W from col name
@@ -54,22 +54,49 @@ reg_long_stats <- rbind(reg_winning_stats, reg_losing_stats)
 reg_long_stats <- arrange(reg_long_stats, team, Daynum)
 
 #### calculate how previous performance from last 5 games (width = 5) predicts outcome of games ####
-reg_prevperf_5w <- previous_perf(data = reg_long_stats, grouper = "team", arranger = "Daynum", width = 5, func = mean, exclude = c("Season", "Daynum", "loc", "win_loss"))
+## where _pp_ == "previous performance" 
+reg_pp_5w <- previous_perf(data = reg_long_stats, grouper = "team", arranger = "Daynum", width = 5, func = mean, exclude = c("Season", "Daynum", "loc", "win_loss", "gameID"))
 
-## review output 
-# review team 1101 from the 2017 season
-# their first two games they scored 65 points... (in reg_long_stats)
-# note the columns in reg_prevperf now represent "means" rather than raw stats i.e. the mean of the last 5 games (if there are 5 games to average)
-head(reg_prevperf_5w)
+#### single team previous performance data ####
+head(reg_pp_5w)
 head(reg_long_stats)
 
-#### MODEL EXAMPLE #### 
-## Don't put model results in this file
-## We ask the question, can we predict a win/loss FOR ANY GAME given a team's performance up to 5 weeks prior to a game
-## Why do this? We are using data from a team's 30+ games...rather than summarizing their 30 games into one end of season statistic
-## randomForest(win_loss ~ score + fgm + loc + ftm + score_diff, data = reg_prevperf_5w)
+#### This results in a "single team" data set i.e. we'll only be able to look at whether a single team's stats predict their future performance...while ignoring the strength of their opponent
 
+#### opponent adjusted data set ####
+### where "_opp_ == "opponent adjusted data"
+reg_opp_5w <- merge(x = dplyr::filter(reg_prevperf_5w), 
+                       y = dplyr::filter(reg_prevperf_5w), 
+                       by.x = "gameID", 
+                       by.y = "gameID")
 
+#### remove NA rows ####
+reg_opp_5w <- dplyr::filter(reg_opp_5w, !is.na(team.x))
+
+## check for duplicates and othre weird stuff on the self-join
+# test <- filter(reg_opp_5w, gameID == "2017_1187_1214")
+
+reg_opp_5w$uid <- paste0(reg_opp_5w$gameID,"_", reg_opp_5w$win_loss.x) 
+reg_opp_5w$dupe <- duplicated(reg_opp_5w$uid)
+
+reg_opp_5w <- filter(reg_opp_5w, dupe == FALSE)
+
+## each game is duplicated twice, (one for winning team, one for losing)
+## reduce number of rows to make RF faster
+
+### trying to figure out quick way to convert character columns to factor, without naming each column
+# cols <- ldply(lapply(reg_opp_5w, is.character))
+# 
+# fix_cols <- dplyr::filter(cols, V1 == TRUE)
+# 
+# reg_opp_5w[cols] <- lapply(reg_opp_5w[,c(fix_cols[,1])], factor)
+
+reg_opp_5w$loc.x <- as.factor(reg_opp_5w$loc.x)
+
+rf5wOA <- randomForest(as.factor(win_loss.x) ~ ., data = na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y, -win_loss.y, -loc.y, -Season.x, -Daynum.x, -Season.y, -Daynum.y, -score_diff.x, -score_diff.y, -score.x, -score.y, -uid, -dupe)))
+
+rf5wOA
+varImpPlot(rf5wOA)
 
 # #### calculate additional stats #####
 # #create win and loss differential:
