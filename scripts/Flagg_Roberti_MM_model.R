@@ -9,8 +9,12 @@ library(tidyr)
 
 
 #Open the datasets:
-inpath <- "C:/Users/jroberti/Git/mm2017/data/"
-inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"
+#Open the datasets:
+if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
+    inpath <- "C:/Users/jroberti/Git/mm2017/data/"
+} else if (length(list.files("C:/Users/cflagg/Documents/GitHub/mm2017/data/")) > 0 ) {
+    inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"   
+}
 #grab detailed results:
 reg<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
@@ -160,7 +164,6 @@ ranker <- function(data){
 
 #start <- Sys.time()
 regrank <-  plyr::ddply(reg.sub.train, .(Season), function(x) {ranker(x)})
-
 
 #create distributions of weighted possession efficieny for each team by season and week:
 #summarize
