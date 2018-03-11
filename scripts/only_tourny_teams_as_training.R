@@ -9,9 +9,9 @@ library(tidyr)
 
 # https://www.kaggle.com/ajniggles/march-machine-learning-mania-2017/logistic-regression-and-game-round-calculator
 
-sourcepath <- "C:/Users/Amy/Documents/GitHub/mm2017/scripts/"
+sourcepath <- "~/GitHub/mm2017/scripts/"
 #sourcepath <- "C:/Users/cflagg/Documents/GitHub/mm2017/scripts/"
-inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/data/"
+inpath <- "~/GitHub/mm2017/data/"
 #inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"
 reg_det<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 #tourney.details<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
@@ -63,10 +63,6 @@ reg_det$Wposs.eff<-reg_det$Wposs.action/reg_det$Wposs
 reg_det$Lposs<-reg_det$Lfga2+reg_det$Lfga3+reg_det$Lfta+reg_det$Ldr+reg_det$Lto
 reg_det$Lposs.action<-(reg_det$Lfgm2+reg_det$Lfgm3+reg_det$Lftm-(reg_det$Lto*(reg_det$Wshoot.prct/100))+(reg_det$Ldr*(reg_det$Lshoot.prct/100)))
 reg_det$Lposs.eff<-reg_det$Lposs.action/reg_det$Lposs
-<<<<<<< HEAD
-#################################################################################################s
-=======
->>>>>>> f522533f07d11e127b85802f6b93c42ccdf13514
 
 ### ADD RATINGS
 week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
@@ -268,7 +264,8 @@ pred_tourney_outcome_diff <- predict(mrf2_diff, newdata=tourney2017_input)
 total_outcome <- cbind(pred_tourney_outcome, tourney2017_input)
 total_outcome_diff <- cbind(pred_tourney_outcome_diff, tourney2017_input)
 
-#write.csv(total_outcome, paste0(inpath,"cf_preds_mrf1.csv"), na="")
+## write output files with predictions
+write.csv(total_outcome, paste0(inpath,"cf_preds_mrf1.csv"), na="")
 write.csv(total_outcome_diff, paste0(inpath,"cf_preds_mrf2_diffs.csv"), na="")
 
 
