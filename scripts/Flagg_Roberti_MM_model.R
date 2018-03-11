@@ -244,8 +244,6 @@ finalRankAll <- rbind(finalRanksLose, finalRanksWin)
 finalRanks.df<-finalRankAll %>% group_by(Team,Season)  %>% arrange(Daynum) %>% slice(n())
 #remove the week_ID on the teams columns:
 finalRanks.df$Team<-substr(finalRanks.df$Team,0,4)
-#merge these with combined Stats:
-NCAA.df<-merge(finalRanks.df,combinedStats,by=intersect(names(finalRanks.df),names(combinedStats)))
 #get team means of all stats for each team by season using Regrank data:
 #remove winning team location and Week (Wloc,Week)for the time being
 regrank<-regrank[,-grep("Wloc|Week",names(regrank))]
@@ -261,8 +259,10 @@ finalStatsAll <- rbind(winningTeamStats, losingTeamStats)
 #meanSeasonStats.df<-finalStatsAll %>% group_by(team,Season)  %>% mean(or.pct,na.rm=T)
 #d %>% group_by(Name) %>% summarise_at(vars(-Month), funs(mean(., na.rm=TRUE)))
 meanSeasonStats.df<-aggregate(finalStatsAll[, -c(1,2)], list(finalStatsAll$team,finalStatsAll$Season), mean)
-#ddply(finalStatsAll, .(team,Season), summarize,  mean(team_rank))
+#make team and Season names match among DFs:
 
+#merge these with combined Stats:
+NCAA.df<-merge(finalRanks.df,meanSeasonStats.df,by=intersect(names(finalRanks.df),names(meanSeasonStats.df)))
 # 
 #  numericCols<-unname(which(unlist(apply(finalStatsAll, 2, function(x) is.numeric(x)))))
 # meanSeasonStats.df<-aggregate(. ~ c(team,Season), finalStatsAll[numericCols], mean)
