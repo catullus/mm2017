@@ -4,3 +4,4 @@ rf5wOA <- randomForest(as.factor(win_loss.x) ~ ., data = na.exclude(dplyr::selec
 rf5wOA
 varImpPlot(rf5wOA)
 
+ranger5wOA <- ranger(as.factor(win_loss.x) ~ ., data = na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y)))
