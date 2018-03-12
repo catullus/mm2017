@@ -11,12 +11,13 @@ library(tidyr)
 #Open the datasets:
 #Open the datasets:
 if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
-    inpath <- "C:/Users/jroberti/Git/mm2017/data/"
+    inpath <- "C:/Users/jroberti/Git/mm2017/data2018/"
 } else if (length(list.files("C:/Users/cflagg/Documents/GitHub/mm2017/data/")) > 0 ) {
-    inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"   
+    inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data2018/"   
 }
 #grab detailed results:
 reg<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+reg2<-read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 #create win and loss differential:
 reg$Wdiff <- reg$Wscore - reg$Lscore
