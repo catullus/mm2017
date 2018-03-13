@@ -1,5 +1,5 @@
 #grab Vegas spreads:
-date<-"03-17-2017"
+date<-"03-16-2017"
 URL<-paste0("http://www.vegasinsider.com/college-basketball/scoreboard/scores.cfm/game_date/",date)
 library(rvest)
 #read html
@@ -28,3 +28,4 @@ for(i in 1:length(raw.odds.list)){
 }
 #clean list:
 clean.odds.list<-raw.odds.list
+

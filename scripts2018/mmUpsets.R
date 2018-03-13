@@ -20,6 +20,10 @@ if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
 }
 #grab detailed results:
 reg<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+
+# create unique identifier for a game matchup e.g. "season_team1_team2"
+reg$gameID <- paste0(reg$Season, "_", reg$Wteam, "_", reg$Lteam)
+
 #create win and loss differential:
 reg$Wdiff <- reg$Wscore - reg$Lscore
 reg$Ldiff <- reg$Lscore - reg$Wscore
@@ -150,32 +154,111 @@ ranker <- function(data){
 library(plyr)
 regrank <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
 
+#### rename "W" and "L" columns ####
+reg_winning_stats <-regrank[,grep("W.*|Week|Season|Daynum|gameID", names(regrank))]
+reg_winning_stats$win_loss <- "win"
+reg_losing_stats <-regrank[,grep("L.*|Week|Season|Daynum|Wloc|gameID",names(regrank))] ## location doesn't get picked up for this one
+reg_losing_stats$win_loss <- "loss"
+
+names(reg_winning_stats)<-gsub("^W","",names(reg_winning_stats)) #remove W from col name
+names(reg_losing_stats)<-gsub("^L","",names(reg_losing_stats)) # remove L from col name
+names(reg_losing_stats)<-gsub("^W","",names(reg_losing_stats)) # remove "W" from "Wloc"
+
+#### "Stack win/loss data into the long format"  ####
+reg_long_stats <- rbind(reg_winning_stats, reg_losing_stats)
+reg_long_stats <- arrange(reg_long_stats, team, Daynum)
+
+#create mean stats for the season:
+meanSeasonStats.df<-aggregate(reg_long_stats[, -c(1,2)], list(reg_long_stats$team,reg_long_stats$Season), mean)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# source("C:/Users/jroberti/Git/mm2017/scripts2018/function_previous_performance_NCAA.R")
+# reg_pp_5w <- previous_perf(data = reg_long_stats, grouper = c("Season", "team"), arranger = "Daynum", width = 5, func = mean, exclude = c("Season", "Daynum", "loc", "win_loss", "gameID", "score")) # leaving score out...because it''s confusing -- this is averaging their final score over the last 5 games
+
+
+#### opponent adjusted data set ####
+### where "_opp_ == "opponent adjusted data"
+reg_opp_season <- merge(x = dplyr::filter(reg_long_stats), 
+                    y = dplyr::filter(reg_long_stats), 
+                    by.x = "gameID", 
+                    by.y = "gameID")
+## THIS STEP REMOVES DUPLICATE ROWS WITH ERRONEOUS DATA MATCHED UP
+## IF YOU DON'T UNDESTAND THIS, LOOK AT THE object "TEST" ABOVE FOR RESULTS OF THE MERGE
+## Also removes rows with NA
+reg_opp_season <- dplyr::filter(reg_opp_season, !is.na(team.x) & team.x != team.y) %>% select(-win_loss.y, -Season.y, -Daynum.y, -loc.y)
+reg_opp_season$loc.x <- as.factor(reg_opp_season$loc.x)
+
+head(reg_opp_season)
+
+##########################################################################################
+#############
+
+
+# grab all the rank data for the last week of each season
+finalRanksLose<-regrank[which(regrank$Week==15),c("weekkey_loser","Lteam_rank","Daynum","Season")]
+names(finalRanksLose)<-c("Team","rank","Daynum","Season")
+finalRanksWin<-regrank[which(regrank$Week==15),c("weekkey_winner","Wteam_rank","Daynum","Season")]
+names(finalRanksWin)<-c("Team","rank","Daynum","Season")
+#put all these into 1 df:
+finalRankAll <- rbind(finalRanksLose, finalRanksWin)
+#combine weekkey names with daynum:
+finalRanks.df<-finalRankAll %>% group_by(Team,Season)  %>% arrange(Daynum) %>% slice(n())
+#remove the week_ID on the teams columns:
+finalRanks.df$Team<-substr(finalRanks.df$Team,0,4)
+#get team means of all stats for each team by season using Regrank data:
+#remove winning team location and Week (Wloc,Week)for the time being
+regrank<-regrank[,-grep("Wloc|Week",names(regrank))]
+#find all "winning team columns"
+winningTeamStats<-regrank[,grep("W.*|Season",names(regrank))]
+losingTeamStats<-regrank[,grep("L.*|Week|Season",names(regrank))]
+#for both, make sure the names are identical, so remove the "W" and "L" for each df respectively:
+names(winningTeamStats)<-gsub("^W","",names(winningTeamStats))
+names(losingTeamStats)<-gsub("^L","",names(losingTeamStats))
+#rbind these DFs together:
+finalStatsAll <- rbind(winningTeamStats, losingTeamStats)
+#get team averages of numeric columns:
+#meanSeasonStats.df<-finalStatsAll %>% group_by(team,Season)  %>% mean(or.pct,na.rm=T)
+#d %>% group_by(Name) %>% summarise_at(vars(-Month), funs(mean(., na.rm=TRUE)))
+meanSeasonStats.df<-aggregate(finalStatsAll[, -c(1,2)], list(finalStatsAll$team,finalStatsAll$Season), mean)
+#make team and Season names match among DFs:
+
+#merge these with combined Stats:
+NCAA.df<-merge(finalRanks.df,meanSeasonStats.df,by=intersect(names(finalRanks.df),names(meanSeasonStats.df)))
+
+
+
+
+
+
+
+
+
 train<-regrank[1:round(0.75*nrow(regrank),0),]
 test<-regrank[(round(0.75*nrow(regrank),0)+1):nrow(regrank),]
-    #read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
-fitWin<-glm(Wscore~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+Lblk+Lstl+
-                Wposs.action.wt+Wposs.eff.wt+Lposs.action.wt+Lposs.eff.wt+
-                Wteam_rank+Lteam_rank,data=train)
-fitLose<-glm(Lscore~Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+Ldr.pct+Lshoot.prct+Lstl+Lblk+Wblk+Wstl+
-                Lposs.action.wt+Lposs.eff.wt+Wposs.action.wt+Wposs.eff.wt+
-                Lteam_rank+Wteam_rank,data=train)                
 
- #fitLose<-glm(Lscore~Ldr.pct)
-
-summary(fitWin)
-train$glmPredictWin<-predict(fitWin, type="response") 
-train$glmPredictLose<-predict(fitLose, type="response")
-train$falseWin<-ifelse(train$glmPredictLose>=train$glmPredictWin,1,0)
-accuracyTrain<-1-sum(train$falseWin)/nrow(train)
-
-#run it with the test data:
-test$glmPredictWin<-predict(object = fitWin, newdata = test)
-test$glmPredictLose<-predict(object = fitLose, newdata = test)
-test$falseWin<-ifelse(test$glmPredictLose>=test$glmPredictWin,1,0)
-accuracyTest<-1-sum(test$falseWin)/nrow(test)
 
 #now do it on the entire season's worth of data:
 fullSeason<-readRDS("C:/Users/jroberti/Git/mm2017/data/data4Models.rds")
+
+
+
+
+
 
 
 fit<-glm(Wscore~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
@@ -192,6 +275,29 @@ fullSeason$predScore<-predict(object = fit, newdata = fullSeason)
 
 
 
+
+
+#read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+fitWin<-glm(Wscore~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+Lblk+Lstl+
+                Wposs.action.wt+Wposs.eff.wt+Lposs.action.wt+Lposs.eff.wt+
+                Wteam_rank+Lteam_rank,data=train)
+fitLose<-glm(Lscore~Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+Ldr.pct+Lshoot.prct+Lstl+Lblk+Wblk+Wstl+
+                 Lposs.action.wt+Lposs.eff.wt+Wposs.action.wt+Wposs.eff.wt+
+                 Lteam_rank+Wteam_rank,data=train)                
+
+#fitLose<-glm(Lscore~Ldr.pct)
+
+summary(fitWin)
+train$glmPredictWin<-predict(fitWin, type="response") 
+train$glmPredictLose<-predict(fitLose, type="response")
+train$falseWin<-ifelse(train$glmPredictLose>=train$glmPredictWin,1,0)
+accuracyTrain<-1-sum(train$falseWin)/nrow(train)
+
+#run it with the test data:
+test$glmPredictWin<-predict(object = fitWin, newdata = test)
+test$glmPredictLose<-predict(object = fitLose, newdata = test)
+test$falseWin<-ifelse(test$glmPredictLose>=test$glmPredictWin,1,0)
+accuracyTest<-1-sum(test$falseWin)/nrow(test)
 
 
 

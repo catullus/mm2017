@@ -100,24 +100,24 @@ reg$Lposs.eff.wt<-reg$Lposs.action.wt/reg$Lposs
 #graph it:
 Wteam.eff.wt<-density(reg$Wposs.eff.wt)
 Lteam.eff.wt<-density(reg$Lposs.eff.wt)
-plot(Wteam.eff.wt, main="Possession Efficiency",xlim=c(0,1),ylim=c(0,6))
-polygon(Wteam.eff.wt,col="green")
-lines(Lteam.eff.wt)
-polygon(Lteam.eff.wt,col="red")
-#add means as vertical lines:
-abline(v=mean(reg$Wposs.eff.wt))
-abline(v=mean(reg$Lposs.eff.wt))
+# plot(Wteam.eff.wt, main="Possession Efficiency",xlim=c(0,1),ylim=c(0,6))
+# polygon(Wteam.eff.wt,col="green")
+# lines(Lteam.eff.wt)
+# polygon(Lteam.eff.wt,col="red")
+# #add means as vertical lines:
+# abline(v=mean(reg$Wposs.eff.wt))
+# abline(v=mean(reg$Lposs.eff.wt))
 
 #efficiency differences (using weighted stats for this):
 reg$Wposs.eff.wt.diff<-reg$Wposs.eff.wt-reg$Lposs.eff.wt
 reg$Lposs.eff.wt.diff<-reg$Lposs.eff.wt-reg$Wposs.eff.wt
-plot(density(reg$Wposs.eff.wt.diff))
-lines(density(reg$Lposs.eff.wt.diff))
+# plot(density(reg$Wposs.eff.wt.diff))
+# lines(density(reg$Lposs.eff.wt.diff))
 
-#subset data - only want data past day #30 for each season to avoid lumping preseason etc.
-reg.sub.train<-reg[which(reg$Daynum>30 & reg$Season>2005 & reg$Season<2014),]
-#tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
-reg.sub.test<-reg[which(reg$Daynum>30 & reg$Season>=2014),]
+# #subset data - only want data past day #30 for each season to avoid lumping preseason etc.
+# reg.sub.train<-reg[which(reg$Daynum>30 & reg$Season>2005 & reg$Season<2014),]
+# #tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+# reg.sub.test<-reg[which(reg$Daynum>30 & reg$Season>=2014),]
 
 
 
@@ -166,29 +166,31 @@ ranker <- function(data){
 }
 
 #start <- Sys.time()
-regrank <-  plyr::ddply(reg.sub.train, .(Season), function(x) {ranker(x)})
+#regrank <-  plyr::ddply(reg.sub.train, .(Season), function(x) {ranker(x)})
+regrank <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
+
 
 #create distributions of weighted possession efficieny for each team by season and week:
 #summarize
 proc_reg.W <- data.frame(group_by(regrank, Season, Wteam) %>%
-    arrange(Week) %>% 
-    dplyr::summarise(wt.mean<-mean(Wposs.eff.wt),
-                     wt.sd<-sd(Wposs.eff.wt),
-                     wt.diff.mean<-mean(Wposs.eff.wt.diff),
-                     wt.diff.sd<-sd(Wposs.eff.wt.diff),
-                     rank.team<-mean((Wteam_rank))/max(Lteam_rank,Wteam_rank),
-                     team.count<-length(Wteam)))
+                             arrange(Week) %>% 
+                             dplyr::summarise(wt.mean<-mean(Wposs.eff.wt),
+                                              wt.sd<-sd(Wposs.eff.wt),
+                                              wt.diff.mean<-mean(Wposs.eff.wt.diff),
+                                              wt.diff.sd<-sd(Wposs.eff.wt.diff),
+                                              rank.team<-mean((Wteam_rank))/max(Lteam_rank,Wteam_rank),
+                                              team.count<-length(Wteam)))
 names(proc_reg.W)<-c("Season","Team","wt.mean","wt.sd","wt.diff.mean","wt.diff.sd","rank","N")
 #names(proc_reg.W)<-c("Season","Team","wt.mean","wt.sd","rank","N")
 
 proc_reg.L <- data.frame(group_by(regrank, Season, Lteam) %>%
-    arrange(Week) %>% 
-    dplyr::summarise(wt.mean<-mean(Lposs.eff.wt),
-                      wt.sd<-sd(Lposs.eff.wt),
-                      wt.diff.mean<-mean(Lposs.eff.wt.diff),
-                      wt.diff.sd<-sd(Lposs.eff.wt.diff),
-                      rank.team<-mean((Lteam_rank))/max(Lteam_rank,Wteam_rank),
-                      team.count<-length(Lteam)))
+                             arrange(Week) %>% 
+                             dplyr::summarise(wt.mean<-mean(Lposs.eff.wt),
+                                              wt.sd<-sd(Lposs.eff.wt),
+                                              wt.diff.mean<-mean(Lposs.eff.wt.diff),
+                                              wt.diff.sd<-sd(Lposs.eff.wt.diff),
+                                              rank.team<-mean((Lteam_rank))/max(Lteam_rank,Wteam_rank),
+                                              team.count<-length(Lteam)))
 names(proc_reg.L)<-c("Season","Team","wt.mean","wt.sd","wt.diff.mean","wt.diff.sd","rank","N")
 #(proc_reg.L)<-c("Season","Team","wt.mean","wt.sd","rank","N")
 
@@ -254,6 +256,25 @@ names(reg_losing_stats)<-gsub("^W","",names(reg_losing_stats)) # remove "W" from
 reg_long_stats <- rbind(reg_winning_stats, reg_losing_stats)
 reg_long_stats <- arrange(reg_long_stats, team, Daynum)
 
+#testing  #testing  #testing  #testing  #testing  #testing  #testing  #testing  
+#make score differential:
+regrank$scoreDiff<-regrank$Wscore-regrank$Lscore
+train<-regrank[1:round(0.75*nrow(regrank),0),]
+test<-regrank[(round(0.75*nrow(regrank),0)+1):nrow(regrank),]
+new.glm<-glm(scoreDiff~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
+                Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+
+                  Ldr.pct+Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=train)   
+summary(new.glm)
+train$predScore.glm<-predict(new.glm, type="response") 
+train$residual.glm<-train$score-train$predScore.glm
+
+#now I need the season totals to feed into the model:
+#team A vs Team B, then I'll have the correct output
+
+
+#crunch mean stats for each team:
+# meanStats.df<-aggregate(reg_long_stats[, -c(1,2,3,40)], list(reg_long_stats$team,reg_long_stats$Season), mean)
+
 # grab all the rank data for the last week of each season
 #finalRanksLose<-regrank[which(regrank$Week==15),c("weekkey_loser","Lteam_rank","Daynum","Season")]
 # finalRanksLose<-regrank[,grep("W.*|Week|Season|Daynum|gameID", names(regrank))]
@@ -282,120 +303,52 @@ finalStatsAll <- rbind(winningTeamStats, losingTeamStats)
 #meanSeasonStats.df<-finalStatsAll %>% group_by(team,Season)  %>% mean(or.pct,na.rm=T)
 #d %>% group_by(Name) %>% summarise_at(vars(-Month), funs(mean(., na.rm=TRUE)))
 meanSeasonStats.df<-aggregate(finalStatsAll[, -c(1,2)], list(finalStatsAll$team,finalStatsAll$Season), mean)
+
+colnames(meanSeasonStats.df)[colnames(meanSeasonStats.df) == 'Group.1'] <- 'team'
+colnames(meanSeasonStats.df)[colnames(meanSeasonStats.df) == 'Group.2'] <- 'season'
 saveRDS(meanSeasonStats.df,"C:/users/jroberti/Git/mm2017/data2018/meanSeasonStats.rds")
-#make team and Season names match among DFs:
 
-#merge these with combined Stats:
-#NCAA.df<-merge(finalRanks.df,meanSeasonStats.df,by=intersect(names(finalRanks.df),names(meanSeasonStats.df)))
-# 
-#  numericCols<-unname(which(unlist(apply(finalStatsAll, 2, function(x) is.numeric(x)))))
-# meanSeasonStats.df<-aggregate(. ~ c(team,Season), finalStatsAll[numericCols], mean)
-# 
-
-#create Losing team's location (so data frames are equal):
-# losingTeamStats$Lloc<-rep("N",nrow(losingTeamStats)) #prefill with neutral court
-# losingTeamStats$Lloc[grep("H",winningTeamStats$Wloc)]<-"A" #if winning team was home put losing team as away
-# losingTeamStats$Lloc[grep("A",winningTeamStats$Wloc)]<-"H"
-                     
-avgStats<-finalRankAll <- rbind(winningTeamStats, losingTeamStats)
-
-finalRankAll <- plyr::rbind.fill(winningTeamStats, losingTeamStats)
-
-aggregate(regrank[,3:4], list(d$Name), mean)
+#Build the mode:
+train<-meanSeasonStats.df[1:round(0.75*nrow(meanSeasonStats.df),0),]
+test<-meanSeasonStats.df[(round(0.75*nrow(meanSeasonStats.df),0)+1):nrow(meanSeasonStats.df),]
 
 
+#read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+fit.glm<-glm(score~fgm2.pct+fga23.rat+fgm3.pct+or.pct+dr.pct+shoot.prct+stl+blk+
+                poss.action.wt+poss.eff.wt+team_rank,data=train)
+summary(fit.glm)
+fit.RF<-randomForest(score~fgm2.pct+fga23.rat+fgm3.pct+or.pct+dr.pct+shoot.prct+stl+blk+
+                poss.action.wt+poss.eff.wt+team_rank,data=train)
+varImpPlot(fit.RF,type=2)
+# fitLose<-glm(Lscore~Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+Ldr.pct+Lshoot.prct+Lstl+Lblk+Wblk+Wstl+
+#                  Lposs.action.wt+Lposs.eff.wt+Wposs.action.wt+Wposs.eff.wt+
+#                  Lteam_rank+Wteam_rank,data=train)                
+
+#fitLose<-glm(Lscore~Ldr.pct)
 
 
+train$predScore.glm<-predict(fit.glm, type="response") 
+train$predScore.RF<-predict(fit.RF, type="response")
+#train$glmPredictLose<-predict(fitLose, type="response")
+#train$falseWin<-ifelse(train$glmPredictLose>=train$glmPredictWin,1,0)
+train$residual.glm<-train$score-train$predScore.glm
+train$residual.RF<-train$score-train$predScore.RF
+#accuracyTrain<-1-sum(train$falseWin)/nrow(train)
 
-library(pscl)
-train <- combinedStats[1:round(nrow(combinedStats)*0.725,0),] #make training data
-test <- combinedStats[(round(nrow(combinedStats)*0.725,0)+1):nrow(combinedStats),] #make test data
-fit<-glm(N.win~.,data=train)
-summary(fit) # display results
-anova(fit, test="Chisq") #ANOVA 
-pR2(fit) # assess the fit of the model
-library(ROCR)
-p <- predict(fit, newdata=test)
-pr <- prediction(p, test$N.win)
-prf <- performance(pr, measure = "tpr", x.measure = "fpr")
-plot(prf)
+#run it with the test data:
+test$predScore.glm<-predict(object = fit.glm, newdata = test)
+test$predScore.RF<-predict(object = fit.RF, newdata = test)
+#test$glmPredictLose<-predict(object = fitLose, newdata = test)
+test$residual.glm<-test$score-test$predScore.glm
+test$residual.RF<-test$score-test$predScore.RF
+#accuracyTest<-1-sum(test$falseWin)/nrow(test)
 
+################# USE MODEL TO PREDICT RESULTS OF TOURNEY GAMES ###############
+tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+#set the data up in the same way - ultimately I'll need the team ID, and season to predict points because I'll be 
+#pulling the data from the respective season; then predict points for each team and find Win or loss:
+testing123<-tourney[,c("Season","Wteam")]
 
-confint(fit) # 95% CI for the coefficients
-exp(coef(fit)) # exponentiated coefficients
-exp(confint(fit)) # 95% CI for exponentiated coefficients
-predict(fit, type="response") # predicted values
-residuals(fit, type="deviance") # residuals
-
-
-
-#weight the data by elo ranking:
-plot(density(regrank$Wposs.eff.wt.diff))
-lines(density(regrank$Lposs.eff.wt.diff))
-
-#create adjusted possession efficiency based on team rank and opponent rank:
-#first, create elo differnce ratio for each game:
-regrank$Wteam_rank_rat<-regrank$Wteam_rank/max(regrank$Wteam_rank)
-#still going to use the maximum elo ranking from W side for denomonator:
-regrank$Lteam_rank_rat<-regrank$Lteam_rank/max(regrank$Wteam_rank)
-#ranking differences:
-#regrank$Wteam_rank_rat_diff<-regrank$Wteam_rank_rat-regrank$Lteam_rank_rat
-#adjusted possession efficiency:
-regrank$Wposs.eff.adj<-regrank$Wposs.eff.wt*regrank$Wteam_rank_rat
-regrank$Lposs.eff.adj<-regrank$Lposs.eff.wt*regrank$Lteam_rank_rat
-
-#get the max ELO rating for each week:
-maxElo.W.week<-ddply(regrank,c('Week'),function(x) x[which(x$Wteam_rank_rat==max(x$Wteam_rank_rat)),c("Week","Wteam_rank")])
-#remove duplicate rows: some weeks are coming up duplicated for some reason:
-maxElo.W.week<-maxElo.W.week[!duplicated(maxElo.W.week), ]
-#maxmimum losing team check: 
-maxElo.L.week<-ddply(regrank,c('Week'),function(x) x[which(x$Lteam_rank_rat==max(x$Lteam_rank_rat)),c("Week","Lteam_rank")])
-
-######################adjust possession statistics##########################
-#numer of possessions:
-# reg$Wposs<-reg$Wfga2+reg$Wfga3+reg$Wfta+reg$Wto   #multiply the turnovers by the shooting % of L team to get a more accurate picture of how detrimental the turnovers are.  Also, on the other end, multiple the defensive rbs by the shooting percentage of W team to see how advantageous the defensive rbs are...
-# reg$Wposs.action<-(reg$Wfgm2+reg$Wfgm3+reg$Wftm-(reg$Wto*(reg$Lshoot.prct/100))+(reg$Wdr*(reg$Wshoot.prct/100)))
-#reg$Wposs.eff<-reg$Wposs.action/reg$Wposs 
-#using weighted shooting %
-#reg$Wposs.action.wt<-(reg$Wfgm2+reg$Wfgm3+reg$Wftm-(reg$Wto*(reg$Lshoot.prct.wt/100))+(reg$Wdr*(reg$Wshoot.prct.wt/100)))
-#possession efficiency:
-#test using week 10:
-reg.week10<-regrank[which(regrank$Week==10),]
-reg.week10.previous<-regrank[which(regrank$Week==10),]
-#adjust the winning team possession efficiency via the losing team's rank:
-reg.week10$Wposs.eff.wt<-(reg.week10$Wposs.action.wt/reg.week10$Wposs)* (1-(reg.week10$Lteam_rank/maxElo.W.week[which(maxElo.W.week$Week==10),"Wteam_rank"]))
-#adjust the losing team possession efficiency via winning team's rank:
-reg.week10$Lposs.eff.wt<-(reg.week10$Lposs.action.wt/reg.week10$Lposs)* (1-(reg.week10$Wteam_rank/maxElo.W.week[which(maxElo.W.week$Week==10),"Wteam_rank"]))
-#difference:
-reg.week10$Wposs.eff.wt.dif<-reg.week10$Wposs.eff.wt-reg.week10$Lposs.eff.wt
-reg.week10$Lposs.eff.wt.dif<-reg.week10$Lposs.eff.wt-reg.week10$Wposs.eff.wt
-#losing team:
-reg$Lposs<-reg$Lfga2+reg$Lfga3+reg$Lfta+reg$Ldr+reg$Lto
-#non-weighted shooting stats:
-reg$Lposs.action<-(reg$Lfgm2+reg$Lfgm3+reg$Lftm-(reg$Lto*(reg$Wshoot.prct/100))+(reg$Ldr*(reg$Lshoot.prct/100)))
-reg$Lposs.eff<-reg$Lposs.action/reg$Lposs  
-#weighted shooting stats:
-reg$Lposs.action.wt<-(reg$Lfgm2+reg$Lfgm3+reg$Lftm-(reg$Lto*(reg$Wshoot.prct.wt/100))+(reg$Ldr*(reg$Lshoot.prct.wt/100)))
-reg$Lposs.eff.wt<-reg$Lposs.action.wt/reg$Lposs  
-
-
-
-#graph it:
-Wteam.eff.wt<-density(reg$Wposs.eff.wt)
-Lteam.eff.wt<-density(reg$Lposs.eff.wt)
-plot(Wteam.eff.wt, main="Possession Efficiency",xlim=c(0,1),ylim=c(0,6))
-polygon(Wteam.eff.wt,col="green")
-lines(Lteam.eff.wt)
-polygon(Lteam.eff.wt,col="red")
-#add means as vertical lines:
-abline(v=mean(reg$Wposs.eff.wt))
-abline(v=mean(reg$Lposs.eff.wt))
-
-#efficiency differences (using weighted stats for this):
-reg$Wposs.eff.wt.diff<-reg$Wposs.eff.wt-reg$Lposs.eff.wt
-reg$Lposs.eff.wt.diff<-reg$Lposs.eff.wt-reg$Wposs.eff.wt
-plot(density(reg$Wposs.eff.wt.diff))
-lines(density(reg$Lposs.eff.wt.diff))
 
 
 
