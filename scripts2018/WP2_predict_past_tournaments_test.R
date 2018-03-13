@@ -44,7 +44,7 @@ rf_test_data <- merge(x = rf_test_data, y = losing_inputs, by.x = "l_uid", by.y 
 rf_test_data <- rf_test_data %>% select(-win_loss.y) # drop the win loss column, which is from the regular season NOT the tournament
 
 #### check that test data names matches names used in model #### 
-#into_rf <- na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y))
+into_rf <- na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y))
 #pred_data <- dplyr::select(rf_test_data, names(into_rf))
 
 data.frame(names(into_rf) %in% names(rf_test_data), names(into_rf))
@@ -71,7 +71,7 @@ rf_test_data$loc.x <- as.factor(rf_test_data$loc.x)
 levels(rf_test_data$loc.x) <-levels(reg_opp_5w$loc.x)
 
 # compare output of predictions
-# predict(object = rf5wOA, newdata = rf_test_data)
+predict(object = rf5wOA, newdata = rf_test_data)
 pred_results <- data.frame(tourny, 
                            pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
                            pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
