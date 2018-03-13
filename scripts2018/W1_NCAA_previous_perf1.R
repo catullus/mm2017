@@ -11,6 +11,10 @@ library(PlayerRatings)
 library(car)
 library(randomForest)
 library(tidyr)
+library(ranger)
+
+## seasons being used for this and other data sets
+season_target <- c(2014, 2015, 2016, 2017)
 
 #Open the datasets:
 if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
@@ -37,7 +41,7 @@ reg$Wscore_diff <- reg$Wscore - reg$Lscore
 reg$Lscore_diff <- reg$Lscore - reg$Wscore
 
 ### give me one season for testing
-reg <- dplyr::filter(reg, Season %in% c(2014, 2015, 2016, 2017)) ## comment out or modify to expand data set
+reg <- dplyr::filter(reg, Season %in% c(season_target)) ## comment out or modify to expand data set
 
 #create adjusted shooting stats:  (fg = 2 or 3 pointer...)  let's partition 2 and 3 pointers:
 ######### WINNING TEAM #############
