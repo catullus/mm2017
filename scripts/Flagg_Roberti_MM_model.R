@@ -11,7 +11,7 @@ library(tidyr)
 #Open the datasets:
 #Open the datasets:
 if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
-    inpath <- "C:/Users/jroberti/Git/mm2017/data2018/"
+    inpath <- "C:/Users/jroberti/Git/mm2017/data/"
 } else if (length(list.files("C:/Users/cflagg/Documents/GitHub/mm2017/data/")) > 0 ) {
     inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data2018/"   
 }
@@ -115,9 +115,11 @@ plot(density(reg$Wposs.eff.wt.diff))
 lines(density(reg$Lposs.eff.wt.diff))
 
 #subset data - only want data past day #30 for each season to avoid lumping preseason etc.
-reg.sub.train<-reg[which(reg$Daynum>30 & reg$Season>2005 & reg$Season<2014),]
+reg.sub.train<-reg2[which(reg2$Daynum>30 & reg2$Season>2005 & reg2$Season<2014),]
 #tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
-reg.sub.test<-reg[which(reg$Daynum>30 & reg$Season>=2014),]
+reg.sub.test<-reg2[which(reg2$Daynum>30 & reg2$Season>=2014),]
+
+
 
 #run data thru ranking system:
 ranker <- function(data){
