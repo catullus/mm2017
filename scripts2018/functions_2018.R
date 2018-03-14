@@ -1,5 +1,5 @@
 ranker <- function(data){
-    
+    #browser()
     # assign week of the year based on Daynum -- add year from 'Season'
     ## for the given day, assign the numeric week
     week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
@@ -12,13 +12,13 @@ ranker <- function(data){
     }
     
     # assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
-    data$Outcome <- ifelse(data$Wscore - data$Lscore>0, 1, 0)
-    data$Week <- sapply(data$Daynum, assign_week, week_idx)
-    data$weekkey_winner <- paste0(data$Wteam,"_",data$Week)
-    data$weekkey_loser <- paste0(data$Lteam,"_",data$Week)
+    data$outcome <- ifelse(data$lscore - data$lscore>0, 1, 0)
+    data$week <- sapply(data$daynum, assign_week, week_idx)
+    data$weekkey_winner <- paste0(data$wteam,"_",data$week)
+    data$weekkey_loser <- paste0(data$lteam,"_",data$week)
     
     # this uses the Daynum converted to week
-    ranks <- steph(select(data, Week, Wteam, Lteam, Outcome), history=TRUE)
+    ranks <- steph(select(data, week, wteam, lteam, outcome), history=TRUE)
     
     # matrix comes in wide format
     wide_ranks <- as.data.frame(ranks$history)
@@ -36,8 +36,8 @@ ranker <- function(data){
     
     # 
     reg_weekly_ranks <- merge(data, weekly_ranks, by.x=c("weekkey_winner"), by.y=c("weekkey"))
-    reg_weekly_ranks <- rename(reg_weekly_ranks, Wteam_rank=value) %>% select(-player, -type, -week)
+    reg_weekly_ranks <- rename(reg_weekly_ranks, wteam_rank=value) %>% select(-player, -type, -week.x, -week.y)
     reg_weekly_ranks <- merge(reg_weekly_ranks, weekly_ranks, by.x=c("weekkey_loser"), by.y=c("weekkey"))
-    reg_weekly_ranks <- rename(reg_weekly_ranks, Lteam_rank=value) %>% select(-player, -type, -week)
+    reg_weekly_ranks <- rename(reg_weekly_ranks, wteam_rank=value)
     return(reg_weekly_ranks)
 }
