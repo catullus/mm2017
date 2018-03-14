@@ -318,7 +318,7 @@ plot(train.updated$residual.glm)
 #make smaller trainign dataset for RF:
 #trainRF<-regrank[1:round(0.10*nrow(regrank),0),]
 #sample 5000 rows from updated dataframe for RF modeL:
-trainRF<-train.updated[sample(nrow(train.updated), 5000),]
+trainRF<-train.updated[sample(nrow(train.updated), 10000),]
 fit.rf<-randomForest(teamA_diff~teamA_fgm2.pct+teamA_fga23.rat+teamA_fgm3.pct+teamA_or.pct+teamA_dr.pct+teamA_shoot.prct+
                          teamA_stl+teamA_blk+teamA_poss.action.wt+teamA_poss.eff.wt+teamA_team_rank+
                          teamB_fgm2.pct+teamB_fga23.rat+teamB_fgm3.pct+teamB_shoot.prct+teamB_stl+
@@ -471,13 +471,19 @@ modelNCAA<-function(stats.df, model, tourney.df){
         df.tourney[[i]]<-cbind(team1Season,team2Season)
     }
     out<-do.call(rbind,df.tourney)
-    #browser()
+    
     #run the model:
-    tourney.updated$predScoreDiff.rf<-predict(object = model, newdata = out)
+    tourney.updated$teamA_diff.pred<-predict(object = model, newdata = out)
+    #add binary to show if teamA won:
+    #browser()
+    tourney.updated$teamA_win<-ifelse(tourney.updated$teamA_score>tourney.updated$teamB_score,1,0)
+    tourney.updated$teamA_win.pred<-ifelse(tourney.updated$teamA_diff.pred>0,1,0)
     return(tourney.updated)
 }
 #run it!
-results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.glm,tourney.df=tourney)
+results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.rf,tourney.df=tourney)
+#accuracy:
+length(which(results$teamA_win==results$teamA_win.pred))/nrow(results)
 
 
 
