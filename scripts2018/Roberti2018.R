@@ -410,9 +410,14 @@ saveRDS(meanSeasonStats.df,"C:/users/jroberti/Git/mm2017/data2018/meanSeasonStat
 
 ################# USE MODEL TO PREDICT RESULTS OF TOURNEY GAMES ###############
 tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+#open the tourney seeds:
+tourneySeeds<-read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE, header = TRUE)
 #set the data up in the same way - ultimately I'll need the team ID, and season to predict points because I'll be 
 #pulling the data from the respective season; then predict points for each team and find Win or los
-modelNCAA<-function(stats.df, model, tourney.df){
+modelNCAA<-function(stats.df, model, tourney.df, seeds){
+    #truncate the tourney data to start at 2003 (matches tourneyDetailedResults file)
+    seeds<-seeds[which(seeds$Season>=tourney.df$Season[1]),]
+    #browser()
     #split tourney.df in half:
     tourney.df1<-tourney.df[1:round(0.5*nrow(tourney.df),0),] #team A = winning, team B = losing
     #make team A = winning team, make Team B = Losing team (opposite of the train.mirror df)
@@ -453,37 +458,112 @@ modelNCAA<-function(stats.df, model, tourney.df){
     matchups<-tourney.updated[,c("Season","teamA_team","teamB_team")]
     #make empty list:
     df.tourney<-list()
+    df.seed<-list()
     #browser()
     #use Season, and teamIDs in matchup to find seasonal team data and predict score differential:
     for(i in 1:nrow(matchups)){
-        #find correct Season and teams:
+        #find correct Season and teams in stats:
         seasonInd<-grep(matchups$Season[i],stats.df$season)
         team1Ind<-grep(matchups$teamA_team[i],stats.df$team)
         team2Ind<-grep(matchups$teamB_team[i],stats.df$team)
-        #map correct season with correct teams:
+        #grab correct Season and teams in seeds:
+        seasonIndSeed<-grep(matchups$Season[i],seeds$Season)
+        team1IndSeed<-grep(matchups$teamA_team[i],seeds$Team)
+        team2IndSeed<-grep(matchups$teamB_team[i],seeds$Team)
+        #map correct season with correct teams in stats:
         team1Season<-meanSeasonStats.df[intersect(seasonInd,team1Ind),]
+        #map correct season with correct teams in seeds:
+        team1Season$seed<-as.numeric(gsub("\\D","",seeds$Seed[intersect(seasonIndSeed,team1IndSeed)]))
         #add "W" to all names:
         names(team1Season)<-paste0("teamA_",names(team1Season))
         team2Season<-meanSeasonStats.df[intersect(seasonInd,team2Ind),]
+        #map correct season with correct teams in seeds:
+        team2Season$seed<-as.numeric(gsub("\\D","",seeds$Seed[intersect(seasonIndSeed,team2IndSeed)]))
         #add "L to all names:
         names(team2Season)<-paste0("teamB_",names(team2Season))
         #Create dataframe with both teams' stats:
         df.tourney[[i]]<-cbind(team1Season,team2Season)
+        df.seed[[i]]<-cbind(team1Season$teamA_seed,team2Season$teamB_seed)
     }
     out<-do.call(rbind,df.tourney)
+    out.seed<-do.call(rbind,df.seed)
     
     #run the model:
     tourney.updated$teamA_diff.pred<-predict(object = model, newdata = out)
+    #cbind the seeds:
+    tourney.updated<-cbind(tourney.updated,out.seed)
+    #change the names to teamA_seed and teamB_seed:
+    colnames(tourney.updated)[colnames(tourney.updated) == '1'] <- 'teamA_seed'
+    colnames(tourney.updated)[colnames(tourney.updated) == '2'] <- 'teamB_seed'
     #add binary to show if teamA won:
-    #browser()
     tourney.updated$teamA_win<-ifelse(tourney.updated$teamA_score>tourney.updated$teamB_score,1,0)
     tourney.updated$teamA_win.pred<-ifelse(tourney.updated$teamA_diff.pred>0,1,0)
+    #adjust prediction to account for point spread and team seed:
+    #browser()
+    tourney.updated$seedDiff<-tourney.updated$teamA_seed-tourney.updated$teamB_seed
+    tourney.updated$teamA_win.predAdj<-tourney.updated$teamA_win.pred
+    tourney.updated$teamA_win.predProb<-0
+    #browser()
+    
+    for(i in 1:nrow(tourney.updated)){
+        #if the predicted spread of the game is within 2.5 points (favoring better seed) and the seeds are within 4, set win as 1
+        if(tourney.updated$teamA_seed[i]==15 & tourney.updated$teamB_seed[i]==2){
+            tourney.updated$teamA_win.predProb[i]<-0.05
+        }
+        if(tourney.updated$teamA_seed[i]==14 & tourney.updated$teamB_seed[i]==3){
+            tourney.updated$teamA_win.predProb[i]<-0.125
+        }
+        if(tourney.updated$teamA_seed[i]==13 & tourney.updated$teamB_seed[i]==4){
+            tourney.updated$teamA_win.predProb[i]<-0.1875
+        }
+        if(tourney.updated$teamA_seed[i]==12 & tourney.updated$teamB_seed[i]==5){
+            tourney.updated$teamA_win.predProb[i]<-0.3625
+        }
+        if(tourney.updated$teamA_seed[i]==11 & tourney.updated$teamB_seed[i]==6){
+            tourney.updated$teamA_win.predProb[i]<-0.4125
+        }
+        if(tourney.updated$teamA_seed[i]==10 & tourney.updated$teamB_seed[i]==7){
+            tourney.updated$teamA_win.predProb[i]<-0.4125
+        }
+        if(tourney.updated$teamA_seed[i]==9 & tourney.updated$teamB_seed[i]==8){
+            tourney.updated$teamA_win.predProb[i]<-0.4375
+        }
+        # if(tourney.updated$teamA_diff.pred[i]>=-2 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=10){
+        #     tourney.updated$teamA_win.predAdj[i]<-1
+        # }
+        # if(tourney.updated$teamA_diff.pred[i]>=-1 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=4){
+        #     tourney.updated$teamA_win.predAdj[i]<-1
+        # }
+        # if(tourney.updated$teamA_diff.pred[i]>=-0.5 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=8){
+        #     tourney.updated$teamA_win.predAdj[i]<-1
+        # }
+        # if(tourney.updated$teamA_diff.pred[i]>=-0.25 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=16){
+        #     tourney.updated$teamA_win.predAdj[i]<-1
+        # }
+
+    }
+    #output data frame:
     return(tourney.updated)
 }
 #run it!
-results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.rf,tourney.df=tourney)
-#accuracy:
+results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.rf,tourney.df=tourney, 
+                   seeds=tourneySeeds)
+#accuracy of non-adjusted model:
 length(which(results$teamA_win==results$teamA_win.pred))/nrow(results)
+#accuracy of sed-adjusted model:
+length(which(results$teamA_win==results$teamA_win.predAdj))/nrow(results)
 
+#more exploratory testing:
+#test1<-which(results$teamA_diff.pred<=0) 
+test2<-which(results$teamA_win==1)
+test3<-which(results$seedDiff>=0)
 
+testsAll<-results[Reduce(intersect, list(test2,test3)),]
+#testsAll<-results[Reduce(intersect, list(test1,test2)),]
+length(which(testsAll$teamA_win==testsAll$teamA_win.pred))/nrow(testsAll)
+length(which(testsAll$teamA_win==testsAll$teamA_win.predAdj))/nrow(testsAll)
 
+test1b<-which(results$teamA_diff.pred>=0) 
+test2b<-which(results$teamA_diff.pred>=-3)
+test3b<-which(results$seedDiff>0)
+testsAll<-results[Reduce(intersect, list(test1,test2,test3)),]
