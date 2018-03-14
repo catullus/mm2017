@@ -1,4 +1,4 @@
-# The Flagg-Roberti MM Model
+# Roberti Model
 library(plyr)
 library(dplyr)
 library(stringr)
@@ -273,6 +273,9 @@ names(trainWin)<-gsub("^L","teamB_",names(trainWin))
 names(trainWin)<-gsub("^W","teamA_",names(trainWin))
 #remove the first two columns:
 trainWin<-trainWin[,-c(1,2)]
+#fix Week and location column:
+colnames(trainWin)[colnames(trainWin) == 'teamA_eek'] <- 'Week'
+colnames(trainWin)[colnames(trainWin) == 'teamA_loc'] <- 'wloc'
 #make dataframe where team A and B are reversed 
 trainLose<-train[(round(0.5*nrow(train),0)+1):nrow(train),]
 #move Losing team data under Winning team data:
@@ -289,31 +292,45 @@ trainLoseEnd<-trainLoseEnd[,-c(1,2)]
 names(trainLoseEnd)<-gsub("^W","teamB_",names(trainLoseEnd))
 #fix Week column:
 colnames(trainLoseEnd)[colnames(trainLoseEnd) == 'teamB_eek'] <- 'Week'
+colnames(trainLoseEnd)[colnames(trainLoseEnd) == 'teamB_loc'] <- 'wloc'
 #cbind the two dataframes together (TEAM A is losing team, TEAM B is winning team; this is opposite of train.win
 train.mirror<-cbind(trainLoseStart,trainLoseEnd)
+#rbind the two above dataframes:
+train.updated<-rbind(trainWin,train.mirror)
 
-test<-regrank[(round(0.75*nrow(regrank),0)+1):nrow(regrank),]
-fit.glm<-glm(Wdiff~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
-                Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+
-                  Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=train) 
-train$predScoreDiff.glm<-predict(fit.glm, type="response") 
-fit.glm<-glm(Wscore~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
-                 Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+
-                 Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=train)   
+#test<-regrank[(round(0.75*nrow(regrank),0)+1):nrow(regrank),]
+fit.glm<-glm(teamA_diff~teamA_fgm2.pct+teamA_fga23.rat+teamA_fgm3.pct+teamA_or.pct+teamA_dr.pct+teamA_shoot.prct+
+                 teamA_stl+teamA_blk+teamA_poss.action.wt+teamA_poss.eff.wt+teamA_team_rank+
+                 teamB_fgm2.pct+teamB_fga23.rat+teamB_fgm3.pct+teamB_shoot.prct+teamB_stl+
+                 teamB_blk+teamB_poss.action.wt+teamB_poss.eff.wt+teamB_team_rank,data=train.updated)
+
+# 
+# train$predScoreDiff.glm<-predict(fit.glm, type="response") 
+# fit.glm<-glm(Wscore~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
+#                  Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+
+#                  Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=train)   
 summary(fit.glm)
-length(fit.glm$coefficients) > fit.glm$rank
-train$predScoreDiff.glm<-predict(fit.glm, type="response") 
-train$residual.glm<-train$Wdiff-train$predScoreDiff.glm
-plot(train$residual.glm)
+length(fit.glm$coefficients) > fit.glm$rank  #should be FALSE!
+train.updated$predScoreDiff.glm<-predict(fit.glm, type="response") 
+train.updated$residual.glm<-train.updated$teamA_diff-train.updated$predScoreDiff.glm
+plot(train.updated$residual.glm)
 ############################# RF MODEL RF MODEL RF MODEL #################
 #make smaller trainign dataset for RF:
-trainRF<-regrank[1:round(0.10*nrow(regrank),0),]
-fit.RF<-randomForest(Wdiff~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
-                         Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+
-                         Ldr.pct+Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=trainRF,do.trace=20)
-varImpPlot(fit.RF,type=2)
-trainRF$predScoreDiff.rf<-predict(fit.RF, type="response") 
-trainRF$residual.rf<-trainRF$Wdiff-trainRF$predScoreDiff.rf
+#trainRF<-regrank[1:round(0.10*nrow(regrank),0),]
+#sample 5000 rows from updated dataframe for RF modeL:
+trainRF<-train.updated[sample(nrow(train.updated), 5000),]
+fit.rf<-randomForest(teamA_diff~teamA_fgm2.pct+teamA_fga23.rat+teamA_fgm3.pct+teamA_or.pct+teamA_dr.pct+teamA_shoot.prct+
+                         teamA_stl+teamA_blk+teamA_poss.action.wt+teamA_poss.eff.wt+teamA_team_rank+
+                         teamB_fgm2.pct+teamB_fga23.rat+teamB_fgm3.pct+teamB_shoot.prct+teamB_stl+
+                         teamB_blk+teamB_poss.action.wt+teamB_poss.eff.wt+teamB_team_rank,data=trainRF,do.trace=20)
+
+# 
+# fit.RF<-randomForest(Wdiff~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
+#                          Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+
+#                          Ldr.pct+Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=trainRF,do.trace=20)
+varImpPlot(fit.rf,type=2)
+trainRF$predScoreDiff.rf<-predict(fit.rf, type="response") 
+trainRF$residual.rf<-trainRF$teamA_diff-trainRF$predScoreDiff.rf
 plot(trainRF$residual.rf)
 
 #now I need the season totals to feed into the model:
@@ -384,7 +401,7 @@ saveRDS(meanSeasonStats.df,"C:/users/jroberti/Git/mm2017/data2018/meanSeasonStat
 # #accuracyTrain<-1-sum(train$falseWin)/nrow(train)
 # 
 # #run it with the test data:
-test$predScore.glm<-predict(object = fit.glm, newdata = test)
+#test$predScore.glm<-predict(object = fit.glm, newdata = test)
 # test$predScore.RF<-predict(object = fit.RF, newdata = test)
 # #test$glmPredictLose<-predict(object = fitLose, newdata = test)
 # test$residual.glm<-test$score-test$predScore.glm
@@ -396,36 +413,71 @@ tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors
 #set the data up in the same way - ultimately I'll need the team ID, and season to predict points because I'll be 
 #pulling the data from the respective season; then predict points for each team and find Win or los
 modelNCAA<-function(stats.df, model, tourney.df){
+    #split tourney.df in half:
+    tourney.df1<-tourney.df[1:round(0.5*nrow(tourney.df),0),] #team A = winning, team B = losing
+    #make team A = winning team, make Team B = Losing team (opposite of the train.mirror df)
+    names(tourney.df1)<-gsub("^L","teamB_",names(tourney.df1))
+    names(tourney.df1)<-gsub("^W","teamA_",names(tourney.df1))
+    #fix Week and location column:
+    #(trainWin)[colnames(tourney.df1) == 'teamA_eek'] <- 'Week'
+    colnames(tourney.df1)[colnames(tourney.df1) == 'teamA_loc'] <- 'wloc'
+    #make dataframe where team A and B are reversed 
+    tourney.df2<-tourney.df[(round(0.5*nrow(tourney.df),0)+1):nrow(tourney.df),]
+    #move Losing team data under Winning team data:
+    tourney.df2.start<-tourney.df2[,grep("L.*",names(tourney.df2))]
+    #call teams A and B and not Win and Lose:
+    names(tourney.df2.start)<-gsub("^L","teamA_",names(tourney.df2.start))
+    #make sequence for logic to grab non-L.* names:
+    nameSeq<-1:length(names(tourney.df2))
+    #grab winning team indicies:
+    tourney.df2.end<-tourney.df2[,which(nameSeq %in% grep("L.*",names(tourney.df2))==FALSE)]
+    #remove the first two columns:
+    #trainLoseEnd<-trainLoseEnd[,-c(1,2)]
+    #rename to team B:
+    names(tourney.df2.end)<-gsub("^W","teamB_",names(tourney.df2.end))
+    #fix Week column:
+    #colnames(trainLoseEnd)[colnames(trainLoseEnd) == 'teamB_eek'] <- 'Week'
+    colnames(tourney.df2.end)[colnames(tourney.df2.end) == 'teamB_loc'] <- 'wloc'
+    #cbind the two dataframes together (TEAM A is losing team, TEAM B is winning team; this is opposite of train.win
+    tourney.mirror<-cbind(tourney.df2.start,tourney.df2.end)
+    #rbind the two above dataframes:
+    tourney.updated<-rbind(tourney.df1,tourney.mirror)
+    
+    # tourney.df1<-
+    # gsub("^L","teamB_",names(trainWin))
+    #names(tourney.df)
+    
     #crunch score differential for the tourney data relative to the Winning team
-    tourney.df$Wdiff <- tourney.df$Wscore - tourney.df$Lscore
+    tourney.updated$teamA_diff <- tourney.updated$teamA_score - tourney.updated$teamB_score
     #grab all the matchups:
-    matchups<-tourney.df[,c("Season","Wteam","Lteam")]
+    matchups<-tourney.updated[,c("Season","teamA_team","teamB_team")]
     #make empty list:
     df.tourney<-list()
+    #browser()
     #use Season, and teamIDs in matchup to find seasonal team data and predict score differential:
     for(i in 1:nrow(matchups)){
         #find correct Season and teams:
         seasonInd<-grep(matchups$Season[i],stats.df$season)
-        team1Ind<-grep(matchups$Wteam[i],stats.df$team)
-        team2Ind<-grep(matchups$Lteam[i],stats.df$team)
+        team1Ind<-grep(matchups$teamA_team[i],stats.df$team)
+        team2Ind<-grep(matchups$teamB_team[i],stats.df$team)
         #map correct season with correct teams:
-        team1Season<-meanSeasonStats.df[intersect(seasonInd,team2Ind),]
+        team1Season<-meanSeasonStats.df[intersect(seasonInd,team1Ind),]
         #add "W" to all names:
-        names(team1Season)<-paste0("W",names(team1Season))
-        team2Season<-meanSeasonStats.df[intersect(seasonInd,team1Ind),]
+        names(team1Season)<-paste0("teamA_",names(team1Season))
+        team2Season<-meanSeasonStats.df[intersect(seasonInd,team2Ind),]
         #add "L to all names:
-        names(team2Season)<-paste0("L",names(team2Season))
+        names(team2Season)<-paste0("teamB_",names(team2Season))
         #Create dataframe with both teams' stats:
         df.tourney[[i]]<-cbind(team1Season,team2Season)
     }
     out<-do.call(rbind,df.tourney)
     #browser()
     #run the model:
-    tourney.df$predScoreDiff.rf<-predict(object = model, newdata = out)
-    return(tourney.df)
+    tourney.updated$predScoreDiff.rf<-predict(object = model, newdata = out)
+    return(tourney.updated)
 }
 #run it!
-results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.RF,tourney.df=tourney)
+results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.glm,tourney.df=tourney)
 
 
 
