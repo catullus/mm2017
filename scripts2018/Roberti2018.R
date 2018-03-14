@@ -412,6 +412,59 @@ saveRDS(meanSeasonStats.df,"C:/users/jroberti/Git/mm2017/data2018/meanSeasonStat
 tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 #open the tourney seeds:
 tourneySeeds<-read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE, header = TRUE)
+################create win probs based on seed:
+#create game ID to link ending DFs together:
+tourney$gameID<-paste(tourney$Season,tourney$Wteam,tourney$Lteam,sep="_")
+#add Roundsto tounrey data:
+tourney$Round<-NA
+tourney$Round[grep("136|137",tourney$Daynum)]<-1
+tourney$Round[grep("138|139",tourney$Daynum)]<-2
+tourney$Round[grep("143|144",tourney$Daynum)]<-3
+tourney$Round[grep("145|146",tourney$Daynum)]<-4
+tourney$Round[grep("152",tourney$Daynum)]<-5
+tourney$Round[grep("154",tourney$Daynum)]<-6
+
+###Winning Team
+tourneyWinners<-tourney[,c("Season","Wteam","gameID","Round")]
+names(tourneyWinners)<-c("Season","Team","gameID","Round")
+tourneyWinners<-merge(tourneyWinners,tourneySeeds,by=intersect(names(tourneyWinners),names(tourneySeeds)))
+#remove letters from seeds:
+tourneyWinners$Seed<-gsub("\\D","",tourneyWinners$Seed)
+###Losing Team
+tourneyLosers<-tourney[,c("Season","Lteam","gameID","Round")]
+names(tourneyLosers)<-c("Season","Team","gameID","Round")
+tourneyLosers<-merge(tourneyLosers,tourneySeeds,by=intersect(names(tourneyLosers),names(tourneySeeds)))
+#remove letters from seeds:
+tourneyLosers$Seed<-gsub("\\D","",tourneyLosers$Seed)
+#merge on gameID:
+tourneyProbs.df<-merge(tourneyWinners,tourneyLosers,by= c("gameID","Season","Round"))
+#rename:
+names(tourneyProbs.df)<-c("gameID","Season","Round","teamW","seedW","teamL","seedL")
+#create column with both team's seeds:
+tourneyProbs.df$seedMatchup<-paste0(tourneyProbs.df$seedW,"_",tourneyProbs.df$seedL)
+#make Round numeric:
+tourneyProbs.df$Round<-as.numeric(tourneyProbs.df$Round)
+#grab frequency stats:
+matchupFreq<-tourneyProbs.df %>% group_by(seedMatchup,Round) %>% summarise(Frequency = n())
+matchupFreq$Round<-as.integer(matchupFreq$Round)
+#how many games from each round are played:
+gamesPerRound<-table(na.omit(tourneyProbs.df$Round))
+#gamesPerRoundAdj<-c(gamesPerRound[1]/(32*8),gamesPerRound[2]/16,gamesPerRound[3]/4,gamesPerRound[4]/2,gamesPerRound[5]/16
+#get probability of wins:
+matchupFreq$Prob<-0
+for(i in 1:6){
+    matchupFreq$Prob[grep(i,matchupFreq$Round)]<-matchupFreq$Frequency[grep(i,matchupFreq$Round)]/((gamesPerRound/length(unique(tourneyProbs.df$Season)))*2)
+        #gamesPerRound[grep("1",names(gamesPerRound))]
+}
+
+
+
+probs_table<-sort(table(tourneyProbs.df$seedMatchup),decreasing =T)/(length(unique(tourneyProbs.df$Season))*4)
+
+#convert to df:
+probsFinal.df<-data.frame(t(probs_table))
+probsFinal.df
+
 #set the data up in the same way - ultimately I'll need the team ID, and season to predict points because I'll be 
 #pulling the data from the respective season; then predict points for each team and find Win or los
 modelNCAA<-function(stats.df, model, tourney.df, seeds){
@@ -504,44 +557,15 @@ modelNCAA<-function(stats.df, model, tourney.df, seeds){
     tourney.updated$teamA_win.predAdj<-tourney.updated$teamA_win.pred
     tourney.updated$teamA_win.predProb<-0
     #browser()
+    #add weights:
+    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==15 & tourney.updated$teamB_seed[i]==2]<-0.05
+    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==14 & tourney.updated$teamB_seed[i]==3]<-0.125
+    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==13 & tourney.updated$teamB_seed[i]==4]<-0.1878
+    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==12 & tourney.updated$teamB_seed[i]==5]<-0.363
+    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==11 & tourney.updated$teamB_seed[i]==6]<-0.413
+    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==10 & tourney.updated$teamB_seed[i]==7]<-0.413
+    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==9 & tourney.updated$teamB_seed[i]==8]<-0.434
     
-    for(i in 1:nrow(tourney.updated)){
-        #if the predicted spread of the game is within 2.5 points (favoring better seed) and the seeds are within 4, set win as 1
-        if(tourney.updated$teamA_seed[i]==15 & tourney.updated$teamB_seed[i]==2){
-            tourney.updated$teamA_win.predProb[i]<-0.05
-        }
-        if(tourney.updated$teamA_seed[i]==14 & tourney.updated$teamB_seed[i]==3){
-            tourney.updated$teamA_win.predProb[i]<-0.125
-        }
-        if(tourney.updated$teamA_seed[i]==13 & tourney.updated$teamB_seed[i]==4){
-            tourney.updated$teamA_win.predProb[i]<-0.1875
-        }
-        if(tourney.updated$teamA_seed[i]==12 & tourney.updated$teamB_seed[i]==5){
-            tourney.updated$teamA_win.predProb[i]<-0.3625
-        }
-        if(tourney.updated$teamA_seed[i]==11 & tourney.updated$teamB_seed[i]==6){
-            tourney.updated$teamA_win.predProb[i]<-0.4125
-        }
-        if(tourney.updated$teamA_seed[i]==10 & tourney.updated$teamB_seed[i]==7){
-            tourney.updated$teamA_win.predProb[i]<-0.4125
-        }
-        if(tourney.updated$teamA_seed[i]==9 & tourney.updated$teamB_seed[i]==8){
-            tourney.updated$teamA_win.predProb[i]<-0.4375
-        }
-        # if(tourney.updated$teamA_diff.pred[i]>=-2 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=10){
-        #     tourney.updated$teamA_win.predAdj[i]<-1
-        # }
-        # if(tourney.updated$teamA_diff.pred[i]>=-1 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=4){
-        #     tourney.updated$teamA_win.predAdj[i]<-1
-        # }
-        # if(tourney.updated$teamA_diff.pred[i]>=-0.5 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=8){
-        #     tourney.updated$teamA_win.predAdj[i]<-1
-        # }
-        # if(tourney.updated$teamA_diff.pred[i]>=-0.25 & tourney.updated$seedDiff[i]>=0 & tourney.updated$seedDiff[i]<=16){
-        #     tourney.updated$teamA_win.predAdj[i]<-1
-        # }
-
-    }
     #output data frame:
     return(tourney.updated)
 }
