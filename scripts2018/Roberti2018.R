@@ -17,103 +17,110 @@ if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
 }
 #grab detailed results:
 reg<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
-reg2<-read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE, header = TRUE)
-team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
-#create win and loss differential:
-reg$Wdiff <- reg$Wscore - reg$Lscore
-reg$Ldiff <- reg$Lscore - reg$Wscore
+#reg2<-read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+#team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
 
-#create adjusted shooting stats:  (fg = 2 or 3 pointer...)  let's partition 2 and 3 pointers:
-######### WINNING TEAM #############
-#2-pointers attempted:
-reg$Wfga2<-reg$Wfga-reg$Wfga3
-#2-pointers made:
-reg$Wfgm2<-reg$Wfgm-reg$Wfgm3
-#2-point made %
-reg$Wfgm2.pct<-reg$Wfgm2/reg$Wfga2
-#2/3 point ratio attempts
-reg$Wfga23.rat<-reg$Wfga2/reg$Wfga3
-
-#ft made %
-reg$Wftm.pct<-reg$Wftm/reg$Wfta
-
-#3-point made %
-reg$Wfgm3.pct<-reg$Wfgm3/reg$Wfga3
-
-#create a score check to make sure the fgm2, fgm3, and ftm add up to respective score:  #check should be 0
-W.score.check<-reg$Wscore-((reg$Wfgm2*2)+(reg$Wfgm3*3)+reg$Wftm)
-
-######### LOSING TEAM ##############
-#2-pointers attempted:
-reg$Lfga2<-reg$Lfga-reg$Lfga3
-#2-pointers made:
-reg$Lfgm2<-reg$Lfgm-reg$Lfgm3
-#2-point made %
-reg$Lfgm2.pct<-reg$Lfgm2/reg$Lfga2
-#2/3 point ratio attempts
-reg$Lfga23.rat<-reg$Lfga2/reg$Lfga3
-
-#ft made %
-reg$Lftm.pct<-reg$Lftm/reg$Lfta
-
-#3-point made %
-reg$Lfgm3.pct<-reg$Lfgm3/reg$Lfga3
-
-#teams' shooting percentages:
-reg$Wshoot.prct<-reg$Wfgm2+reg$Wfgm3+reg$Wftm/reg$Wfga2+reg$Wfga3+reg$Wfta
-reg$Lshoot.prct<-reg$Lfgm2+reg$Lfgm3+reg$Lftm/reg$Lfga2+reg$Lfga3+reg$Lfta
-
-#teams' weighted shooting percentages:
-reg$Wshoot.prct.wt<-(2*reg$Wfgm2)+(3*reg$Wfgm3)+reg$Wftm/reg$Wfga2+reg$Wfga3+reg$Wfta
-reg$Lshoot.prct.wt<-(2*reg$Lfgm2)+(3*reg$Lfgm3)+reg$Lftm/reg$Lfga2+reg$Lfga3+reg$Lfta
-
-#rebound prct
-#offensive rbds attempts W team = defensive rbds attempts L team
-reg$Wor.a<-reg$Wor+reg$Ldr
-reg$Wor.pct<-reg$Wor/reg$Wor.a
-reg$Ldr.a<-reg$Wor.a
-reg$Ldr.pct<-reg$Ldr/reg$Ldr.a
-
-#defensive rbds attempts W team = offensive rbds attempts L team
-reg$Wdr.a<-reg$Wdr+reg$Lor
-reg$Wdr.pct<-reg$Wdr/reg$Wdr.a
-reg$Lor.a<-reg$Wdr.a
-reg$Lor.pct<-reg$Lor/reg$Lor.a
-
-#numer of possessions:
-reg$Wposs<-reg$Wfga2+reg$Wfga3+reg$Wfta+reg$Wto   #multiply the turnovers by the shooting % of L team to get a more accurate picture of how detrimental the turnovers are.  Also, on the other end, multiple the defensive rbs by the shooting percentage of W team to see how advantageous the defensive rbs are...
-reg$Wposs.action<-(reg$Wfgm2+reg$Wfgm3+reg$Wftm-(reg$Wto*(reg$Lshoot.prct/100))+(reg$Wdr*(reg$Wshoot.prct/100)))
-reg$Wposs.eff<-reg$Wposs.action/reg$Wposs 
-#using weighted shooting %
-reg$Wposs.action.wt<-(reg$Wfgm2+reg$Wfgm3+reg$Wftm-(reg$Wto*(reg$Lshoot.prct.wt/100))+(reg$Wdr*(reg$Wshoot.prct.wt/100)))
-#possession efficiency:
-reg$Wposs.eff.wt<-reg$Wposs.action.wt/reg$Wposs  
-#losing team:
-reg$Lposs<-reg$Lfga2+reg$Lfga3+reg$Lfta+reg$Ldr+reg$Lto
-#non-weighted shooting stats:
-reg$Lposs.action<-(reg$Lfgm2+reg$Lfgm3+reg$Lftm-(reg$Lto*(reg$Wshoot.prct/100))+(reg$Ldr*(reg$Lshoot.prct/100)))
-reg$Lposs.eff<-reg$Lposs.action/reg$Lposs  
-#weighted shooting stats:
-reg$Lposs.action.wt<-(reg$Lfgm2+reg$Lfgm3+reg$Lftm-(reg$Lto*(reg$Wshoot.prct.wt/100))+(reg$Ldr*(reg$Lshoot.prct.wt/100)))
-reg$Lposs.eff.wt<-reg$Lposs.action.wt/reg$Lposs  
-
-#graph it:
-Wteam.eff.wt<-density(reg$Wposs.eff.wt)
-Lteam.eff.wt<-density(reg$Lposs.eff.wt)
-# plot(Wteam.eff.wt, main="Possession Efficiency",xlim=c(0,1),ylim=c(0,6))
-# polygon(Wteam.eff.wt,col="green")
-# lines(Lteam.eff.wt)
-# polygon(Lteam.eff.wt,col="red")
-# #add means as vertical lines:
-# abline(v=mean(reg$Wposs.eff.wt))
-# abline(v=mean(reg$Lposs.eff.wt))
-
-#efficiency differences (using weighted stats for this):
-reg$Wposs.eff.wt.diff<-reg$Wposs.eff.wt-reg$Lposs.eff.wt
-reg$Lposs.eff.wt.diff<-reg$Lposs.eff.wt-reg$Wposs.eff.wt
-# plot(density(reg$Wposs.eff.wt.diff))
-# lines(density(reg$Lposs.eff.wt.diff))
-
+#function to add ancillary stats to the dataset:
+statCreate<-function(x){
+    
+    #create win and loss differential:
+    x$Wdiff <- x$Wscore - x$Lscore
+    x$Ldiff <- x$Lscore - x$Wscore
+    
+    #create adjusted shooting stats:  (fg = 2 or 3 pointer...)  let's partition 2 and 3 pointers:
+    ######### WINNING TEAM #############
+    #2-pointers attempted:
+    x$Wfga2<-x$Wfga-x$Wfga3
+    #2-pointers made:
+    x$Wfgm2<-x$Wfgm-x$Wfgm3
+    #2-point made %
+    x$Wfgm2.pct<-x$Wfgm2/x$Wfga2
+    #2/3 point ratio attempts
+    x$Wfga23.rat<-x$Wfga2/x$Wfga3
+    
+    #ft made %
+    x$Wftm.pct<-x$Wftm/x$Wfta
+    
+    #3-point made %
+    x$Wfgm3.pct<-x$Wfgm3/x$Wfga3
+    
+    #create a score check to make sure the fgm2, fgm3, and ftm add up to respective score:  #check should be 0
+    W.score.check<-x$Wscore-((x$Wfgm2*2)+(x$Wfgm3*3)+x$Wftm)
+    
+    ######### LOSING TEAM ##############
+    #2-pointers attempted:
+    x$Lfga2<-x$Lfga-x$Lfga3
+    #2-pointers made:
+    x$Lfgm2<-x$Lfgm-x$Lfgm3
+    #2-point made %
+    x$Lfgm2.pct<-x$Lfgm2/x$Lfga2
+    #2/3 point ratio attempts
+    x$Lfga23.rat<-x$Lfga2/x$Lfga3
+    
+    #ft made %
+    x$Lftm.pct<-x$Lftm/x$Lfta
+    
+    #3-point made %
+    x$Lfgm3.pct<-x$Lfgm3/x$Lfga3
+    
+    #teams' shooting percentages:
+    x$Wshoot.prct<-x$Wfgm2+x$Wfgm3+x$Wftm/x$Wfga2+x$Wfga3+x$Wfta
+    x$Lshoot.prct<-x$Lfgm2+x$Lfgm3+x$Lftm/x$Lfga2+x$Lfga3+x$Lfta
+    
+    #teams' weighted shooting percentages:
+    x$Wshoot.prct.wt<-(2*x$Wfgm2)+(3*x$Wfgm3)+x$Wftm/x$Wfga2+x$Wfga3+x$Wfta
+    x$Lshoot.prct.wt<-(2*x$Lfgm2)+(3*x$Lfgm3)+x$Lftm/x$Lfga2+x$Lfga3+x$Lfta
+    
+    #rebound prct
+    #offensive rbds attempts W team = defensive rbds attempts L team
+    x$Wor.a<-x$Wor+x$Ldr
+    x$Wor.pct<-x$Wor/x$Wor.a
+    x$Ldr.a<-x$Wor.a
+    x$Ldr.pct<-x$Ldr/x$Ldr.a
+    
+    #defensive rbds attempts W team = offensive rbds attempts L team
+    x$Wdr.a<-x$Wdr+x$Lor
+    x$Wdr.pct<-x$Wdr/x$Wdr.a
+    x$Lor.a<-x$Wdr.a
+    x$Lor.pct<-x$Lor/x$Lor.a
+    
+    #numer of possessions:
+    x$Wposs<-x$Wfga2+x$Wfga3+x$Wfta+x$Wto   #multiply the turnovers by the shooting % of L team to get a more accurate picture of how detrimental the turnovers are.  Also, on the other end, multiple the defensive rbs by the shooting percentage of W team to see how advantageous the defensive rbs are...
+    x$Wposs.action<-(x$Wfgm2+x$Wfgm3+x$Wftm-(x$Wto*(x$Lshoot.prct/100))+(x$Wdr*(x$Wshoot.prct/100)))
+    x$Wposs.eff<-x$Wposs.action/x$Wposs 
+    #using weighted shooting %
+    x$Wposs.action.wt<-(x$Wfgm2+x$Wfgm3+x$Wftm-(x$Wto*(x$Lshoot.prct.wt/100))+(x$Wdr*(x$Wshoot.prct.wt/100)))
+    #possession efficiency:
+    x$Wposs.eff.wt<-x$Wposs.action.wt/x$Wposs  
+    #losing team:
+    x$Lposs<-x$Lfga2+x$Lfga3+x$Lfta+x$Ldr+x$Lto
+    #non-weighted shooting stats:
+    x$Lposs.action<-(x$Lfgm2+x$Lfgm3+x$Lftm-(x$Lto*(x$Wshoot.prct/100))+(x$Ldr*(x$Lshoot.prct/100)))
+    x$Lposs.eff<-x$Lposs.action/x$Lposs  
+    #weighted shooting stats:
+    x$Lposs.action.wt<-(x$Lfgm2+x$Lfgm3+x$Lftm-(x$Lto*(x$Wshoot.prct.wt/100))+(x$Ldr*(x$Lshoot.prct.wt/100)))
+    x$Lposs.eff.wt<-x$Lposs.action.wt/x$Lposs  
+    
+    #graph it:
+    Wteam.eff.wt<-density(x$Wposs.eff.wt)
+    Lteam.eff.wt<-density(x$Lposs.eff.wt)
+    # plot(Wteam.eff.wt, main="Possession Efficiency",xlim=c(0,1),ylim=c(0,6))
+    # polygon(Wteam.eff.wt,col="green")
+    # lines(Lteam.eff.wt)
+    # polygon(Lteam.eff.wt,col="red")
+    # #add means as vertical lines:
+    # abline(v=mean(x$Wposs.eff.wt))
+    # abline(v=mean(x$Lposs.eff.wt))
+    
+    #efficiency differences (using weighted stats for this):
+    x$Wposs.eff.wt.diff<-x$Wposs.eff.wt-x$Lposs.eff.wt
+    x$Lposs.eff.wt.diff<-x$Lposs.eff.wt-x$Wposs.eff.wt
+    # plot(density(reg$Wposs.eff.wt.diff))
+    # lines(density(reg$Lposs.eff.wt.diff))
+    return(x)
+}
+#crunch ancillary stats:
+reg<-statCreate(reg)
 # #subset data - only want data past day #30 for each season to avoid lumping preseason etc.
 # reg.sub.train<-reg[which(reg$Daynum>30 & reg$Season>2005 & reg$Season<2014),]
 # #tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
@@ -242,31 +249,72 @@ combinedStats$wt.diff.mean.loss.adj<-combinedStats$wt.diff.mean.loss*combinedSta
 # 
 # summary(m1.prct)
 
-################ GLM FIT #################
-reg_winning_stats <-regrank[,grep("W.*|Week|Season|Daynum|gameID", names(regrank))]
-reg_winning_stats$win_loss <- "win"
-reg_losing_stats <-regrank[,grep("L.*|Week|Season|Daynum|Wloc|gameID",names(regrank))] ## location doesn't get picked up for this one
-reg_losing_stats$win_loss <- "loss"
+# ################ GLM FIT #################
+# reg_winning_stats <-regrank[,grep("W.*|Week|Season|Daynum|gameID", names(regrank))]
+# reg_winning_stats$win_loss <- "win"
+# reg_losing_stats <-regrank[,grep("L.*|Week|Season|Daynum|Wloc|gameID",names(regrank))] ## location doesn't get picked up for this one
+# reg_losing_stats$win_loss <- "loss"
+# 
+# names(reg_winning_stats)<-gsub("^W","",names(reg_winning_stats)) #remove W from col name
+# names(reg_losing_stats)<-gsub("^L","",names(reg_losing_stats)) # remove L from col name
+# names(reg_losing_stats)<-gsub("^W","",names(reg_losing_stats)) # remove "W" from "Wloc"
+# 
+# #### "Stack win/loss data into the long format"  ####
+# reg_long_stats <- rbind(reg_winning_stats, reg_losing_stats)
+# reg_long_stats <- arrange(reg_long_stats, team, Daynum)
 
-names(reg_winning_stats)<-gsub("^W","",names(reg_winning_stats)) #remove W from col name
-names(reg_losing_stats)<-gsub("^L","",names(reg_losing_stats)) # remove L from col name
-names(reg_losing_stats)<-gsub("^W","",names(reg_losing_stats)) # remove "W" from "Wloc"
-
-#### "Stack win/loss data into the long format"  ####
-reg_long_stats <- rbind(reg_winning_stats, reg_losing_stats)
-reg_long_stats <- arrange(reg_long_stats, team, Daynum)
-
-#testing  #testing  #testing  #testing  #testing  #testing  #testing  #testing  
-#make score differential:
-regrank$scoreDiff<-regrank$Wscore-regrank$Lscore
+############################# GLM MODEL GLM MODEL GLM MODEL #################
+# make training dataset
 train<-regrank[1:round(0.75*nrow(regrank),0),]
+#take the training set and split it in half (one half will reflect winning team)
+trainWin<-train[1:round(0.5*nrow(train),0),]
+#make team A = winning team, make Team B = Losing team (opposite of the train.mirror df)
+names(trainWin)<-gsub("^L","teamB_",names(trainWin))
+names(trainWin)<-gsub("^W","teamA_",names(trainWin))
+#remove the first two columns:
+trainWin<-trainWin[,-c(1,2)]
+#make dataframe where team A and B are reversed 
+trainLose<-train[(round(0.5*nrow(train),0)+1):nrow(train),]
+#move Losing team data under Winning team data:
+trainLoseStart<-trainLose[,grep("L.*",names(trainLose))]
+#call teams A and B and not Win and Lose:
+names(trainLoseStart)<-gsub("^L","teamA_",names(trainLoseStart))
+#make sequence for logic to grab non-L.* names:
+nameSeq<-1:length(names(trainLose))
+#grab winning team indicies:
+trainLoseEnd<-trainLose[,which(nameSeq %in% grep("L.*",names(trainLose))==FALSE)]
+#remove the first two columns:
+trainLoseEnd<-trainLoseEnd[,-c(1,2)]
+#rename to team B:
+names(trainLoseEnd)<-gsub("^W","teamB_",names(trainLoseEnd))
+#fix Week column:
+colnames(trainLoseEnd)[colnames(trainLoseEnd) == 'teamB_eek'] <- 'Week'
+#cbind the two dataframes together (TEAM A is losing team, TEAM B is winning team; this is opposite of train.win
+train.mirror<-cbind(trainLoseStart,trainLoseEnd)
+
 test<-regrank[(round(0.75*nrow(regrank),0)+1):nrow(regrank),]
-new.glm<-glm(scoreDiff~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
-                Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+
-                  Ldr.pct+Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=train)   
-summary(new.glm)
-train$predScore.glm<-predict(new.glm, type="response") 
-train$residual.glm<-train$score-train$predScore.glm
+fit.glm<-glm(Wdiff~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
+                Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+
+                  Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=train) 
+train$predScoreDiff.glm<-predict(fit.glm, type="response") 
+fit.glm<-glm(Wscore~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
+                 Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+
+                 Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=train)   
+summary(fit.glm)
+length(fit.glm$coefficients) > fit.glm$rank
+train$predScoreDiff.glm<-predict(fit.glm, type="response") 
+train$residual.glm<-train$Wdiff-train$predScoreDiff.glm
+plot(train$residual.glm)
+############################# RF MODEL RF MODEL RF MODEL #################
+#make smaller trainign dataset for RF:
+trainRF<-regrank[1:round(0.10*nrow(regrank),0),]
+fit.RF<-randomForest(Wdiff~Wfgm2.pct+Wfga23.rat+Wfgm3.pct+Wor.pct+Wdr.pct+Wshoot.prct+Wstl+Wblk+
+                         Wposs.action.wt+Wposs.eff.wt+Wteam_rank+Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+
+                         Ldr.pct+Lshoot.prct+Lstl+Lblk+Lposs.action.wt+Lposs.eff.wt+Lteam_rank,data=trainRF,do.trace=20)
+varImpPlot(fit.RF,type=2)
+trainRF$predScoreDiff.rf<-predict(fit.RF, type="response") 
+trainRF$residual.rf<-trainRF$Wdiff-trainRF$predScoreDiff.rf
+plot(trainRF$residual.rf)
 
 #now I need the season totals to feed into the model:
 #team A vs Team B, then I'll have the correct output
@@ -277,15 +325,15 @@ train$residual.glm<-train$score-train$predScore.glm
 
 # grab all the rank data for the last week of each season
 #finalRanksLose<-regrank[which(regrank$Week==15),c("weekkey_loser","Lteam_rank","Daynum","Season")]
-# finalRanksLose<-regrank[,grep("W.*|Week|Season|Daynum|gameID", names(regrank))]
-# #names(finalRanksLose)<-c("Team","rank","Daynum","Season")
-# #finalRanksWin<-regrank[which(regrank$Week==15),c("weekkey_winner","Wteam_rank","Daynum","Season")]
-# finalRanksWin<-regrank[,grep("L.*|Week|Season|Daynum|Wloc|gameID",names(regrank))]
-# #names(finalRanksWin)<-c("Team","rank","Daynum","Season")
-# #put all these into 1 df:
+# finalRanksLose<-regrank[,grep("L.*|Week|Season|Daynum|gameID", names(regrank))]
+# # #names(finalRanksLose)<-c("Team","rank","Daynum","Season")
+# # #finalRanksWin<-regrank[which(regrank$Week==15),c("weekkey_winner","Wteam_rank","Daynum","Season")]
+# finalRanksWin<-regrank[,grep("W.*|Week|Season|Daynum|Wloc|gameID",names(regrank))]
+# # #names(finalRanksWin)<-c("Team","rank","Daynum","Season")
+# # #put all these into 1 df:
 # finalRankAll <- rbind(finalRanksLose, finalRanksWin)
-#combine weekkey names with daynum:
-finalRanks.df<-reg_long_stats %>% group_by(team,Season)  %>% arrange(Daynum) %>% slice(n())
+# #combine weekkey names with daynum:
+# finalRanks.df<-reg_long_stats %>% group_by(team,Season)  %>% arrange(Daynum) %>% slice(n())
 #remove the week_ID on the teams columns:
 #finalRanks.df$Team<-substr(finalRanks.df$Team,0,4)
 #get team means of all stats for each team by season using Regrank data:
@@ -308,48 +356,76 @@ colnames(meanSeasonStats.df)[colnames(meanSeasonStats.df) == 'Group.1'] <- 'team
 colnames(meanSeasonStats.df)[colnames(meanSeasonStats.df) == 'Group.2'] <- 'season'
 saveRDS(meanSeasonStats.df,"C:/users/jroberti/Git/mm2017/data2018/meanSeasonStats.rds")
 
-#Build the mode:
-train<-meanSeasonStats.df[1:round(0.75*nrow(meanSeasonStats.df),0),]
-test<-meanSeasonStats.df[(round(0.75*nrow(meanSeasonStats.df),0)+1):nrow(meanSeasonStats.df),]
-
-
-#read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
-fit.glm<-glm(score~fgm2.pct+fga23.rat+fgm3.pct+or.pct+dr.pct+shoot.prct+stl+blk+
-                poss.action.wt+poss.eff.wt+team_rank,data=train)
-summary(fit.glm)
-fit.RF<-randomForest(score~fgm2.pct+fga23.rat+fgm3.pct+or.pct+dr.pct+shoot.prct+stl+blk+
-                poss.action.wt+poss.eff.wt+team_rank,data=train)
-varImpPlot(fit.RF,type=2)
-# fitLose<-glm(Lscore~Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+Ldr.pct+Lshoot.prct+Lstl+Lblk+Wblk+Wstl+
-#                  Lposs.action.wt+Lposs.eff.wt+Wposs.action.wt+Wposs.eff.wt+
-#                  Lteam_rank+Wteam_rank,data=train)                
-
-#fitLose<-glm(Lscore~Ldr.pct)
-
-
-train$predScore.glm<-predict(fit.glm, type="response") 
-train$predScore.RF<-predict(fit.RF, type="response")
-#train$glmPredictLose<-predict(fitLose, type="response")
-#train$falseWin<-ifelse(train$glmPredictLose>=train$glmPredictWin,1,0)
-train$residual.glm<-train$score-train$predScore.glm
-train$residual.RF<-train$score-train$predScore.RF
-#accuracyTrain<-1-sum(train$falseWin)/nrow(train)
-
-#run it with the test data:
+# #Build the mode:
+# train<-meanSeasonStats.df[1:round(0.75*nrow(meanSeasonStats.df),0),]
+# test<-meanSeasonStats.df[(round(0.75*nrow(meanSeasonStats.df),0)+1):nrow(meanSeasonStats.df),]
+# 
+# 
+# #read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+# fit.glm<-glm(score~fgm2.pct+fga23.rat+fgm3.pct+or.pct+dr.pct+shoot.prct+stl+blk+
+#                 poss.action.wt+poss.eff.wt+team_rank,data=train)
+# summary(fit.glm)
+# fit.RF<-randomForest(score~fgm2.pct+fga23.rat+fgm3.pct+or.pct+dr.pct+shoot.prct+stl+blk+
+#                 poss.action.wt+poss.eff.wt+team_rank,data=train)
+# varImpPlot(fit.RF,type=2)
+# # fitLose<-glm(Lscore~Lfgm2.pct+Lfga23.rat+Lfgm3.pct+Lor.pct+Ldr.pct+Lshoot.prct+Lstl+Lblk+Wblk+Wstl+
+# #                  Lposs.action.wt+Lposs.eff.wt+Wposs.action.wt+Wposs.eff.wt+
+# #                  Lteam_rank+Wteam_rank,data=train)                
+# 
+# #fitLose<-glm(Lscore~Ldr.pct)
+# 
+# 
+# train$predScore.glm<-predict(fit.glm, type="response") 
+# train$predScore.RF<-predict(fit.RF, type="response")
+# #train$glmPredictLose<-predict(fitLose, type="response")
+# #train$falseWin<-ifelse(train$glmPredictLose>=train$glmPredictWin,1,0)
+# train$residual.glm<-train$score-train$predScore.glm
+# train$residual.RF<-train$score-train$predScore.RF
+# #accuracyTrain<-1-sum(train$falseWin)/nrow(train)
+# 
+# #run it with the test data:
 test$predScore.glm<-predict(object = fit.glm, newdata = test)
-test$predScore.RF<-predict(object = fit.RF, newdata = test)
-#test$glmPredictLose<-predict(object = fitLose, newdata = test)
-test$residual.glm<-test$score-test$predScore.glm
-test$residual.RF<-test$score-test$predScore.RF
+# test$predScore.RF<-predict(object = fit.RF, newdata = test)
+# #test$glmPredictLose<-predict(object = fitLose, newdata = test)
+# test$residual.glm<-test$score-test$predScore.glm
+# test$residual.RF<-test$score-test$predScore.RF
 #accuracyTest<-1-sum(test$falseWin)/nrow(test)
 
 ################# USE MODEL TO PREDICT RESULTS OF TOURNEY GAMES ###############
 tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 #set the data up in the same way - ultimately I'll need the team ID, and season to predict points because I'll be 
-#pulling the data from the respective season; then predict points for each team and find Win or loss:
-testing123<-tourney[,c("Season","Wteam")]
-
-
+#pulling the data from the respective season; then predict points for each team and find Win or los
+modelNCAA<-function(stats.df, model, tourney.df){
+    #crunch score differential for the tourney data relative to the Winning team
+    tourney.df$Wdiff <- tourney.df$Wscore - tourney.df$Lscore
+    #grab all the matchups:
+    matchups<-tourney.df[,c("Season","Wteam","Lteam")]
+    #make empty list:
+    df.tourney<-list()
+    #use Season, and teamIDs in matchup to find seasonal team data and predict score differential:
+    for(i in 1:nrow(matchups)){
+        #find correct Season and teams:
+        seasonInd<-grep(matchups$Season[i],stats.df$season)
+        team1Ind<-grep(matchups$Wteam[i],stats.df$team)
+        team2Ind<-grep(matchups$Lteam[i],stats.df$team)
+        #map correct season with correct teams:
+        team1Season<-meanSeasonStats.df[intersect(seasonInd,team2Ind),]
+        #add "W" to all names:
+        names(team1Season)<-paste0("W",names(team1Season))
+        team2Season<-meanSeasonStats.df[intersect(seasonInd,team1Ind),]
+        #add "L to all names:
+        names(team2Season)<-paste0("L",names(team2Season))
+        #Create dataframe with both teams' stats:
+        df.tourney[[i]]<-cbind(team1Season,team2Season)
+    }
+    out<-do.call(rbind,df.tourney)
+    #browser()
+    #run the model:
+    tourney.df$predScoreDiff.rf<-predict(object = model, newdata = out)
+    return(tourney.df)
+}
+#run it!
+results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.RF,tourney.df=tourney)
 
 
 
