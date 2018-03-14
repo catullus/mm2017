@@ -47,9 +47,13 @@ rf_test_data <- merge(x = tourny, y = winning_inputs, by.x = "w_uid", by.y="uid.
 rf_test_data <- merge(x = rf_test_data, y = losing_inputs, by.x = "l_uid", by.y = "uid.y")
 
 rf_test_data <- rf_test_data %>% select(-win_loss.y) # drop the win loss column, which is from the regular season NOT the tournament
+rf_test_data$loc.x <- as.factor(rf_test_data$loc.x)
+
+## factors need same number of levels in test data
+levels(rf_test_data$loc.x) <-levels(reg_opp_5w$loc.x)
 
 #### check that test data names matches names used in model #### 
-into_rf <- na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y))
+# into_rf <- na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y))
 #pred_data <- dplyr::select(rf_test_data, names(into_rf))
 # data.frame(names(into_rf) %in% names(rf_test_data), names(into_rf))
 # data.frame(names(rf_test_data) %in% names(rf_test_data), names(rf_test_data))
@@ -67,22 +71,21 @@ into_rf <- na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Seaso
 # levels(pred_data$loc.x) <-levels(reg_opp_5w$loc.x)
 
 ## randomForest will puke if your factors do not have the same levels between test and training data
-rf_test_data$loc.x <- as.factor(rf_test_data$loc.x)
-
-# levels(reg_opp_5w$loc.x) ## input training data
-# levels(pred_data$loc.x) ## input test data
-
-levels(rf_test_data$loc.x) <-levels(reg_opp_5w$loc.x)
 
 # compare output of predictions
 
 pred_results <- data.frame(tourny, 
                             pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
                             pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
+table(pred_results$pred_binary)[2]/nrow(pred_results)
 #pred_results <- data.frame(tourny, 
  #                          pred_binary = predict(ranger5wOA, data = rf_test_data)$predictions)
 #pred_results$pred_binary <- ifelse(pred_results$pred_binary.win >0.5, "win", "loss")
+pred_results_rfsmall <- data.frame(tourny, 
+                           pred_binary = predict(object = rf5wOA_small, newdata = rf_test_data), 
+                           pred_prob = predict(object = rf5wOA_small, newdata = rf_test_data, type = 'prob'))
 
+table(pred_results_rfsmall$pred_binary)[2]/nrow(pred_results_rfsmall)
 # how many game outcomes did the model get right?
 # every row in the tourny df is a win...and our model predicts the outcome of the ".x" team...
 # thus the total number of predicted "wins" should equal the number of rows
@@ -92,5 +95,4 @@ pred_total <- table(pred_results$pred_binary)
 paste0(round(pred_total[2]/sum(pred_total),2), " percent correct wins")
 
 write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_rf5wOA.csv'), row.names=FALSE)
-
 write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_ranger5wOA.csv'), row.names=FALSE)

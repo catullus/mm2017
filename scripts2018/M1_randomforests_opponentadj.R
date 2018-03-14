@@ -7,8 +7,10 @@ rf5wOA <- readRDS(paste0(notgitpath, "rf5wOA_mod.rds"))
 if (!("ranger5wOA" %in% ls())){
     rf5wOA <- randomForest(as.factor(win_loss.x) ~ ., data = na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y)))
     
-    #rf5wOA
-    #varImpPlot(rf5wOA)
+    
+    rf5wOA_small <- randomForest(as.factor(win_loss.x) ~ team_rank.x + team_rank.y + ftm.pct.x + ftm.pct.y + or.pct.x + or.pct.y + fgm3.pct.x + fgm3.pct.y + fgm2.pct.x + fgm2.pct.y + poss.eff.wt.x + poss.eff.wt.y, 
+                                 data = na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y)), ncores = 8, parallel = TRUE)
+
     
     ## try ranger() function
     ranger5wOA <- ranger(as.factor(win_loss.x) ~ ., data = na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y)), importance = 'impurity', probability = TRUE)

@@ -14,7 +14,7 @@ library(tidyr)
 library(ranger)
 
 ## seasons being used for this and other data sets
-season_target <- c(2014, 2015, 2016, 2017)
+season_target <- c(2010:2017)
 
 #Open the datasets:
 if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
@@ -26,6 +26,7 @@ if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
 }
 
 source(paste0(inpath, "/scripts2018/function_previous_performance_NCAA.R"))
+source(paste0(inpath, "/scripts2018/functions_2018.R"))
 
 #### read detailed regular season results ####
 reg <-read.csv(paste0(inpath, "data/RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)

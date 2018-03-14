@@ -43,3 +43,6 @@ ddply(pred_results, ~pred_binary+WSeed_num+Daynum, summarize,
 
 dplyr::filter(pred_results, WSeed_num == 16) ## these look like 16 vs 16 wild card entries, just remove
 dplyr::filter(pred_results, WSeed_num == 1)
+
+
+
