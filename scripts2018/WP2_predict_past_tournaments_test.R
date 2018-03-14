@@ -73,7 +73,6 @@ levels(rf_test_data$loc.x) <-levels(reg_opp_5w$loc.x)
 ## randomForest will puke if your factors do not have the same levels between test and training data
 
 # compare output of predictions
-
 pred_results <- data.frame(tourny, 
                             pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
                             pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
