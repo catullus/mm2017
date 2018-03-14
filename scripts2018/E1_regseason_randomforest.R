@@ -1,5 +1,8 @@
 # E1 - random forests
 library(ggplot2)
+
+hist(pred_results$pred_binary.win)
+
 ggplot(arrange(rg_imp, desc(importance)), aes(var, importance)) + geom_bar(stat='identity') + coord_flip()
 
 ## input data objects

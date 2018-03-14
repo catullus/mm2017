@@ -79,9 +79,9 @@ levels(rf_test_data$loc.x) <-levels(reg_opp_5w$loc.x)
 pred_results <- data.frame(tourny, 
                             pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
                             pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
-pred_results <- data.frame(tourny, 
-                           pred_binary = predict(ranger5wOA, data = rf_test_data)$predictions)
-pred_results$pred_binary <- ifelse(pred_results$pred_binary.win >0.5, "win", "loss")
+#pred_results <- data.frame(tourny, 
+ #                          pred_binary = predict(ranger5wOA, data = rf_test_data)$predictions)
+#pred_results$pred_binary <- ifelse(pred_results$pred_binary.win >0.5, "win", "loss")
 
 # how many game outcomes did the model get right?
 # every row in the tourny df is a win...and our model predicts the outcome of the ".x" team...
@@ -91,6 +91,6 @@ pred_total <- table(pred_results$pred_binary)
 
 paste0(round(pred_total[2]/sum(pred_total),2), " percent correct wins")
 
-pred_total
+write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_rf5wOA.csv'), row.names=FALSE)
 
-hist(pred_results$pred_binary.win)
+write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_ranger5wOA.csv'), row.names=FALSE)
