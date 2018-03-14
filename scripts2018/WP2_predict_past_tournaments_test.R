@@ -24,6 +24,11 @@ tourny <- dplyr::filter(tourny, Season %in% season_target)
 tourny$w_uid <- paste0(tourny$Season, "_", tourny$Wteam) # winning team uid
 tourny$l_uid <- paste0(tourny$Season, "_", tourny$Lteam) # losing team uid
 
+
+# join tournament results with tournament seeding
+tourny <- merge(x = tourny, y = dplyr::select(seeds, -Team, -Season), by.x = "w_uid", by.y = "uid") %>% rename(WSeed_num=Seed_num, WSeed=Seed) 
+tourny <- merge(x = tourny, y = dplyr::select(seeds, -Team, -Season), by.x = "l_uid", by.y = "uid") %>% rename(LSeed_num=Seed_num, LSeed=Seed) 
+
 ## grab LAST GAME of each game in tourney_test by season
 ## for each season, for each team, slice the last record and return
 pred_inputs <- reg_long_stats %>% group_by(Season, team) %>% slice(n()) %>% select(-gameID) %>% ungroup
@@ -46,14 +51,13 @@ rf_test_data <- rf_test_data %>% select(-win_loss.y) # drop the win loss column,
 #### check that test data names matches names used in model #### 
 into_rf <- na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y))
 #pred_data <- dplyr::select(rf_test_data, names(into_rf))
-
-data.frame(names(into_rf) %in% names(rf_test_data), names(into_rf))
-data.frame(names(rf_test_data) %in% names(rf_test_data), names(rf_test_data))
+# data.frame(names(into_rf) %in% names(rf_test_data), names(into_rf))
+# data.frame(names(rf_test_data) %in% names(rf_test_data), names(rf_test_data))
 
 #### check that test data COLUMN TYPES match types in use model, including factor levels ####
 ## character vectors must be converted to factors ##
-sapply(reg_opp_5w, class)
-sapply(rf_test_data, class)
+# sapply(reg_opp_5w, class)
+# sapply(rf_test_data, class)
 
 #%>% select(-gameID, -Season.x, -Daynum.x, -loc.x, -win_loss.x)
 
@@ -71,14 +75,22 @@ rf_test_data$loc.x <- as.factor(rf_test_data$loc.x)
 levels(rf_test_data$loc.x) <-levels(reg_opp_5w$loc.x)
 
 # compare output of predictions
-predict(object = rf5wOA, newdata = rf_test_data)
+
 pred_results <- data.frame(tourny, 
-                           pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
-                           pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
+                            pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
+                            pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
+#pred_results <- data.frame(tourny, 
+ #                          pred_binary = predict(ranger5wOA, data = rf_test_data)$predictions)
+#pred_results$pred_binary <- ifelse(pred_results$pred_binary.win >0.5, "win", "loss")
 
 # how many game outcomes did the model get right?
 # every row in the tourny df is a win...and our model predicts the outcome of the ".x" team...
 # thus the total number of predicted "wins" should equal the number of rows
+pred_results <- filter(pred_results, WSeed_num != 16)
 pred_total <- table(pred_results$pred_binary)
 
 paste0(round(pred_total[2]/sum(pred_total),2), " percent correct wins")
+
+write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_rf5wOA.csv'), row.names=FALSE)
+
+write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_ranger5wOA.csv'), row.names=FALSE)

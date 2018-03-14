@@ -32,6 +32,10 @@ reg <-read.csv(paste0(inpath, "data/RegularSeasonDetailedResults.csv"), stringsA
 ## arrange by lowest Wteam, as that is how kaggle wants the IDs arranged (lowest team first)
 reg <- dplyr::arrange(reg, Season, Daynum, Wteam, Lteam)
 team <- read.csv(paste0(inpath, "data/Teams.csv"), stringsAsFactors = FALSE)
+seeds <- read.csv(paste0(inpath, "data/TourneySeeds.csv"), stringsAsFactors = FALSE)
+seeds$uid <- paste0(seeds$Season,"_",seeds$Team)
+seeds$Seed_num <- as.integer(gsub("^W|^X|^Y|^Z|a|b","", seeds$Seed))
+
 
 # create unique identifier for a game matchup e.g. "season_team1_team2"
 reg$gameID <- paste0(reg$Season, "_", reg$Wteam, "_", reg$Lteam)
@@ -42,6 +46,9 @@ reg$Lscore_diff <- reg$Lscore - reg$Wscore
 
 ### give me one season for testing
 reg <- dplyr::filter(reg, Season %in% c(season_target)) ## comment out or modify to expand data set
+
+### generate ranks for the filtered regular season data set
+regrank <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
 
 #create adjusted shooting stats:  (fg = 2 or 3 pointer...)  let's partition 2 and 3 pointers:
 ######### WINNING TEAM #############
@@ -117,6 +124,9 @@ reg$Lposs.eff<-reg$Lposs.action/reg$Lposs
 reg$Lposs.action.wt<-(reg$Lfgm2+reg$Lfgm3+reg$Lftm-(reg$Lto*(reg$Wshoot.prct.wt/100))+(reg$Ldr*(reg$Lshoot.prct.wt/100)))
 reg$Lposs.eff.wt<-reg$Lposs.action.wt/reg$Lposs
 
+### generate ranks for the filtered regular season data set
+reg <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
+
 #### rename "W" and "L" columns ####
 reg_winning_stats <-reg[,grep("W.*|Week|Season|Daynum|gameID", names(reg))]
 reg_winning_stats$win_loss <- "win"
@@ -155,7 +165,7 @@ reg_opp_5w <- merge(x = dplyr::filter(reg_pp_5w),
 ## THIS STEP REMOVES DUPLICATE ROWS WITH ERRONEOUS DATA MATCHED UP
 ## IF YOU DON'T UNDESTAND THIS, LOOK AT THE object "TEST" ABOVE FOR RESULTS OF THE MERGE
 ## Also removes rows with NA
-reg_opp_5w <- dplyr::filter(reg_opp_5w, !is.na(team.x) & team.x != team.y) %>% select(-win_loss.y, -Season.y, -Daynum.y, -loc.y)
+reg_opp_5w <- dplyr::filter(reg_opp_5w, !is.na(team.x) & team.x != team.y) %>% select(-win_loss.y, -Season.y, -Daynum.y, -loc.y, -eek.x, -eek.y)
 reg_opp_5w$loc.x <- as.factor(reg_opp_5w$loc.x)
 
 head(reg_opp_5w)
