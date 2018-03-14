@@ -46,8 +46,6 @@ if (class(ranger5wOA) == "ranger"){
     training_results$correct <- ifelse(training_results$training_binary == training_results$win_loss.x, "correct", "wrong")
 }
 
-data.frame(training_results$win_loss.x, training_results$win)
-
 ### analyze variable importance of ranger() output
 ranger5wOA
 rg_imp <- importance(ranger5wOA)
