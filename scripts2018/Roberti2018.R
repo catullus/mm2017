@@ -318,7 +318,7 @@ plot(train.updated$residual.glm)
 #make smaller trainign dataset for RF:
 #trainRF<-regrank[1:round(0.10*nrow(regrank),0),]
 #sample 5000 rows from updated dataframe for RF modeL:
-trainRF<-train.updated[sample(nrow(train.updated), 10000),]
+trainRF<-train.updated[sample(nrow(train.updated), 20000),]
 fit.rf<-randomForest(teamA_diff~teamA_fgm2.pct+teamA_fga23.rat+teamA_fgm3.pct+teamA_or.pct+teamA_dr.pct+teamA_shoot.prct+
                          teamA_stl+teamA_blk+teamA_poss.action.wt+teamA_poss.eff.wt+teamA_team_rank+
                          teamB_fgm2.pct+teamB_fga23.rat+teamB_fgm3.pct+teamB_shoot.prct+teamB_stl+
@@ -471,6 +471,8 @@ for(i in 1:nrow(matchupFreq)){
 missingMatchups.df<-do.call(rbind,missingMatchups)
 #combine this with matchupFreq df:
 matchupFreq<-rbind(matchupFreq,missingMatchups.df)
+#save matchup file:
+saveRDS(matchupFreq,"C:/Users/jroberti/Git/mm2017/data2018/matchupProbabilities.rds")
 # matchupFreq$Round<-as.integer(matchupFreq$Round)
 # #how many games from each round are played:
 # gamesPerRound<-table(na.omit(tourneyProbs.df$Round))
@@ -621,7 +623,7 @@ modelNCAA<-function(stats.df, model, tourney.df, seeds, winProbs){
     return(tourney.updated)
 }
 #run it!
-results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.glm,tourney.df=tourney, 
+results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.rf,tourney.df=tourney, 
                    seeds=tourneySeeds,winProbs = matchupFreq)
 #accuracy of non-adjusted model:
 length(which(results$teamA_win==results$teamA_win.pred))/nrow(results)
@@ -637,3 +639,313 @@ LogLoss(results$teamA_winProbFinal, results$teamA_win)
 LogLoss(results$teamA_win.histProb, results$teamA_win)
 # logLoss<- sum(results$teamA_win*log(results$teamA_winProbFinal)+(1-results$teamA_win)+log(1-results$teamA_winProbFinal))
 # #(-1/nrow(results))*
+
+#fit the model to the 2018 data:
+inpath2<-gsub("data","data2018",inpath)
+reg2018 <-read.csv(paste0(inpath2, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
+names(reg2018) <- tolower(names(reg2018))
+submission_target <- c(2018)
+## arrange by lowest Wteam, as that is how kaggle wants the IDs arranged (lowest team first)
+reg2018 <- dplyr::arrange(reg2018, season, daynum, wteamid, lteamid) %>% dplyr::rename(wteam=wteamid, lteam=lteamid) %>% filter(season == submission_target)
+team2018 <- read.csv(paste0(inpath2, "Teams.csv"), stringsAsFactors = FALSE)
+seeds2018 <- read.csv(paste0(inpath2, "NCAATourneySeeds.csv"), stringsAsFactors = FALSE)
+seeds2018$uid <- paste0(seeds2018$Season,"_",seeds2018$Team)
+seeds2018$Seed_num <- as.integer(gsub("^W|^X|^Y|^Z|a|b","", seeds2018$Seed))
+reg2018$gameid <- paste0(reg2018$season, "_", reg2018$wteam, "_", reg2018$lteam)
+
+#add ancillary stats:
+## assign win/loss and total point diff
+reg2018$wscore_diff <- reg2018$wscore - reg2018$lscore
+reg2018$lscore_diff <- reg2018$lscore - reg2018$wscore
+
+### give me one season for testing
+reg2018 <- dplyr::filter(reg2018, season %in% c(2018)) ## comment out or modify to expand data set
+
+
+#create adjusted shooting stats:  (fg = 2 or 3 pointer...)  let's partition 2 and 3 pointers:
+######### wINNING TEAM #############
+#2-pointers attempted:
+reg2018$wfga2<-reg2018$wfga-reg2018$wfga3
+#2-pointers made:
+reg2018$wfgm2<-reg2018$wfgm-reg2018$wfgm3
+#2-point made %
+reg2018$wfgm2.pct<-reg2018$wfgm2/reg2018$wfga2
+#2/3 point ratio attempts
+reg2018$wfga23.rat<-reg2018$wfga2/reg2018$wfga3
+
+#ft made %
+reg2018$wftm.pct<-reg2018$wftm/reg2018$wfta
+
+#3-point made %
+reg2018$wfgm3.pct<-reg2018$wfgm3/reg2018$wfga3
+
+#create a score check to make sure the fgm2, fgm3, and ftm add up to respective score:  #check should be 0
+w.score.check<-reg2018$wscore-((reg2018$wfgm2*2)+(reg2018$wfgm3*3)+reg2018$wftm)
+
+######### lOSING TEAM ##############
+#2-pointers attempted:
+reg2018$lfga2<-reg2018$lfga-reg2018$lfga3
+#2-pointers made:
+reg2018$lfgm2<-reg2018$lfgm-reg2018$lfgm3
+#2-point made %
+reg2018$lfgm2.pct<-reg2018$lfgm2/reg2018$lfga2
+#2/3 point ratio attempts
+reg2018$lfga23.rat<-reg2018$lfga2/reg2018$lfga3
+
+#ft made %
+reg2018$lftm.pct<-reg2018$lftm/reg2018$lfta
+
+#3-point made %
+reg2018$lfgm3.pct<-reg2018$lfgm3/reg2018$lfga3
+
+#teams' shooting percentages:
+reg2018$wshoot.prct<-reg2018$wfgm2+reg2018$wfgm3+reg2018$wftm/reg2018$wfga2+reg2018$wfga3+reg2018$wfta
+reg2018$lshoot.prct<-reg2018$lfgm2+reg2018$lfgm3+reg2018$lftm/reg2018$lfga2+reg2018$lfga3+reg2018$lfta
+
+#teams' weighted shooting percentages:
+reg2018$wshoot.prct.wt<-(2*reg2018$wfgm2)+(3*reg2018$wfgm3)+reg2018$wftm/reg2018$wfga2+reg2018$wfga3+reg2018$wfta
+reg2018$lshoot.prct.wt<-(2*reg2018$lfgm2)+(3*reg2018$lfgm3)+reg2018$lftm/reg2018$lfga2+reg2018$lfga3+reg2018$lfta
+
+#rebound prct
+#offensive rbds attempts w team = defensive rbds attempts l team
+reg2018$wor.a<-reg2018$wor+reg2018$ldr
+reg2018$wor.pct<-reg2018$wor/reg2018$wor.a
+reg2018$ldr.a<-reg2018$wor.a
+reg2018$ldr.pct<-reg2018$ldr/reg2018$ldr.a
+
+#defensive rbds attempts w team = offensive rbds attempts l team
+reg2018$wdr.a<-reg2018$wdr+reg2018$lor
+reg2018$wdr.pct<-reg2018$wdr/reg2018$wdr.a
+reg2018$lor.a<-reg2018$wdr.a
+reg2018$lor.pct<-reg2018$lor/reg2018$lor.a
+
+#### numer of possessions:####
+reg2018$wposs<-reg2018$wfga2+reg2018$wfga3+reg2018$wfta+reg2018$wto   #multiply the turnovers by the shooting % of l team to get a more accurate picture of how detrimental the turnovers are.  Also, on the other end, multiple the defensive rbs by the shooting percentage of w team to see how advantageous the defensive rbs are...
+reg2018$wposs.action<-(reg2018$wfgm2+reg2018$wfgm3+reg2018$wftm-(reg2018$wto*(reg2018$lshoot.prct/100))+(reg2018$wdr*(reg2018$wshoot.prct/100)))
+reg2018$wposs.eff<-reg2018$wposs.action/reg2018$wposs
+#using weighted shooting %
+reg2018$wposs.action.wt<-(reg2018$wfgm2+reg2018$wfgm3+reg2018$wftm-(reg2018$wto*(reg2018$lshoot.prct.wt/100))+(reg2018$wdr*(reg2018$wshoot.prct.wt/100)))
+#possession efficiency:
+reg2018$wposs.eff.wt<-reg2018$wposs.action.wt/reg2018$wposs
+
+#losing team:
+reg2018$lposs<-reg2018$lfga2+reg2018$lfga3+reg2018$lfta+reg2018$ldr+reg2018$lto
+#non-weighted shooting stats:
+reg2018$lposs.action<-(reg2018$lfgm2+reg2018$lfgm3+reg2018$lftm-(reg2018$lto*(reg2018$wshoot.prct/100))+(reg2018$ldr*(reg2018$lshoot.prct/100)))
+reg2018$lposs.eff<-reg2018$lposs.action/reg2018$lposs
+#weighted shooting stats:
+reg2018$lposs.action.wt<-(reg2018$lfgm2+reg2018$lfgm3+reg2018$lftm-(reg2018$lto*(reg2018$wshoot.prct.wt/100))+(reg2018$ldr*(reg2018$lshoot.prct.wt/100)))
+reg2018$lposs.eff.wt<-reg2018$lposs.action.wt/reg2018$lposs
+
+### generate ranks for the filtered reg2018ular season data set
+#run data thru ranking system:
+ranker2 <- function(data){
+    # assign week of the year based on Daynum -- add year from 'Season'
+    ## for the given day, assign the numeric week
+    week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
+    assign_week <- function(d, idx){
+        for (i in 1:length(idx$day)){
+            if (d >= idx[i,1] & d <= idx[i+1,1]){
+                return(idx[i,2])
+            }
+        }
+    }
+    
+    # assign 1 for win, 0 for loss, 0.5 for draw to team in left-most column
+    data$Outcome <- ifelse(data$wscore - data$lscore>0, 1, 0)
+    data$Week <- sapply(data$daynum, assign_week, week_idx)
+    data$weekkey_winner <- paste0(data$wteam,"_",data$Week)
+    data$weekkey_loser <- paste0(data$lteam,"_",data$Week)
+    
+    # this uses the Daynum converted to week
+    ranks <- steph(select(data, Week, wteam, lteam, Outcome), history=TRUE)
+    
+    # matrix comes in wide format
+    wide_ranks <- as.data.frame(ranks$history)
+    wide_ranks$player <- rownames(wide_ranks)
+    
+    # convert to long format
+    long_ranks <- tidyr::gather(wide_ranks, value = player)
+    names(long_ranks) <- c("player", "type", "value")
+    ## this is screwing up the week -- split is a regex field
+    long_ranks$week <- ldply(stringr::str_split(long_ranks$type,"[.]"))[,1]
+    
+    # only grab ratings
+    weekly_ranks <- filter(long_ranks, str_detect(type, "Rating"))
+    weekly_ranks$weekkey <- paste0(weekly_ranks$player,"_",weekly_ranks$week)
+    
+    # 
+    reg_weekly_ranks <- merge(data, weekly_ranks, by.x=c("weekkey_winner"), by.y=c("weekkey"))
+    reg_weekly_ranks <- rename(reg_weekly_ranks, wteam_rank=value) %>% select(-player, -type, -week)
+    reg_weekly_ranks <- merge(reg_weekly_ranks, weekly_ranks, by.x=c("weekkey_loser"), by.y=c("weekkey"))
+    reg_weekly_ranks <- rename(reg_weekly_ranks, lteam_rank=value) %>% select(-player, -type, -week)
+    return(reg_weekly_ranks)
+}
+
+reg2018 <-  plyr::ddply(reg2018, .(season), function(x) {ranker2(x)})
+
+reg2018$weekkey_loser <- NULL
+reg2018$weekkey_winner <- NULL
+
+"weekkey_loser" %in% names(reg2018)
+
+regrank2018<-reg2018[,-grep("wloc|Week",names(reg2018))]
+#find all "winning team columns"
+winningTeamStats2018<-regrank2018[,grep("^w.*|season",names(regrank2018))]
+losingTeamStats2018<-regrank2018[,grep("^l.*|Week|season",names(regrank2018))]
+#for both, make sure the names are identical, so remove the "W" and "L" for each df respectively:
+names(winningTeamStats2018)<-gsub("^w","",names(winningTeamStats2018))
+names(losingTeamStats2018)<-gsub("^l","",names(losingTeamStats2018))
+#rbind these DFs together:
+finalStatsAll2018 <- rbind(winningTeamStats2018, losingTeamStats2018)
+#get team averages of numeric columns:
+#meanSeasonStats.df<-finalStatsAll %>% group_by(team,Season)  %>% mean(or.pct,na.rm=T)
+#d %>% group_by(Name) %>% summarise_at(vars(-Month), funs(mean(., na.rm=TRUE)))
+meanSeasonStats2018.df<-aggregate(finalStatsAll2018[, -c(1,2)], list(finalStatsAll2018$team,finalStatsAll2018$season), mean)
+
+colnames(meanSeasonStats2018.df)[colnames(meanSeasonStats2018.df) == 'Group.1'] <- 'team'
+colnames(meanSeasonStats2018.df)[colnames(meanSeasonStats2018.df) == 'Group.2'] <- 'season'
+saveRDS(meanSeasonStats2018.df,"C:/Users/jroberti/Git/mm2017/data2018/meanSeasonStats2018.rds")
+
+#grab 2018 tourney stuff:
+seeds2018 <- read.csv(paste0(inpath2, "NCAATourneySeeds.csv"), stringsAsFactors=FALSE)
+seeds2018 <- dplyr::filter(seeds2018, Season == 2018)
+
+## this should result in 68 rows i.e. the 68 teams playing in the tourny
+#submission_data <- reg2018_pp_5w %>% filter(team %in% seeds2018$TeamID) %>% arrange(desc(daynum)) %>% group_by(team) %>%  slice(n()) 
+
+# stolen from: https://stackoverflow.com/questions/17171148/non-redundant-version-of-expand-grid
+expand.grid.unique <- function(x, y, include.equals=FALSE)
+{
+    x <- unique(x)
+    
+    y <- unique(y)
+    
+    g <- function(i)
+    {
+        z <- setdiff(y, x[seq_len(i-include.equals)])
+        
+        if(length(z)) cbind(x[i], z, deparse.level=0)
+    }
+    
+    do.call(rbind, lapply(seq_along(x), g))
+}
+
+all_matchups <- expand.grid.unique(seeds2018$TeamID, seeds2018$TeamID)
+all_matchups <- data.frame(all_matchups)
+names(all_matchups) <- c("x", "y")
+
+all_matchups <- arrange(all_matchups, x)
+all_matchups$id <- paste0("2018_", all_matchups$x, "_", all_matchups$y)
+
+############ USE MATCHUP FILE FROM EMAIL:
+all_matchups<-read.csv("C:/Users/jroberti/Git/mm2017/data2018/all_tournament_matchups_2018.csv",
+                       header=T,stringsAsFactors = F)
+
+
+#merge(x = all_matchups, y = reg2018_pp_5w) 
+NCAAmodel2018<-function(stats.df, model, tourney.df, seeds, winProbs){
+    df.tourney<-list()
+    df.seed<-list()
+    #browser()
+    matchups<-tourney.df[,c("team_x","team_y")]
+    matchups$Season<-substr(tourney.df$ID,0,4)
+    names(matchups)<-c("teamA_team","teamB_team","Season")
+    
+    #browser()
+    #use Season, and teamIDs in matchup to find seasonal team data and predict score differential:
+    for(i in 1:nrow(matchups)){
+        #find correct Season and teams in stats:
+        seasonInd<-grep(matchups$Season[i],stats.df$season)
+        team1Ind<-grep(matchups$teamA_team[i],stats.df$team)
+        team2Ind<-grep(matchups$teamB_team[i],stats.df$team)
+        #grab correct Season and teams in seeds:
+        seasonIndSeed<-grep(matchups$Season[i],seeds$Season)
+        team1IndSeed<-grep(matchups$teamA_team[i],seeds$Team)
+        team2IndSeed<-grep(matchups$teamB_team[i],seeds$Team)
+        #map correct season with correct teams in stats:
+        team1Season<-meanSeasonStats.df[intersect(seasonInd,team1Ind),]
+        #map correct season with correct teams in seeds:
+        team1Season$seed<-as.numeric(gsub("\\D","",seeds$Seed[intersect(seasonIndSeed,team1IndSeed)]))
+        #add "W" to all names:
+        names(team1Season)<-paste0("teamA_",names(team1Season))
+        team2Season<-meanSeasonStats.df[intersect(seasonInd,team2Ind),]
+        #map correct season with correct teams in seeds:
+        team2Season$seed<-as.numeric(gsub("\\D","",seeds$Seed[intersect(seasonIndSeed,team2IndSeed)]))
+        #add "L to all names:
+        names(team2Season)<-paste0("teamB_",names(team2Season))
+        #Create dataframe with both teams' stats:
+        df.tourney[[i]]<-cbind(team1Season,team2Season)
+        df.seed[[i]]<-cbind(team1Season$teamA_seed,team2Season$teamB_seed)
+    }
+    out<-do.call(rbind,df.tourney)
+    out.seed<-do.call(rbind,df.seed)
+    #browser()
+    
+    
+    #run the model:
+    teamA_diff.pred<-predict(object = model, newdata = out)
+    #cbind the seeds:
+    tourney.updated<-cbind(tourney.df,out.seed)
+    #change the names to teamA_seed and teamB_seed:
+    colnames(tourney.updated)[colnames(tourney.updated) == '1'] <- 'teamA_seed'
+    colnames(tourney.updated)[colnames(tourney.updated) == '2'] <- 'teamB_seed'
+    #add binary to show if teamA won:
+    #tourney.updated$teamA_win<-ifelse(tourney.updated$teamA_score>tourney.updated$teamB_score,1,0)
+    tourney.updated$teamA_win.pred<-ifelse(teamA_diff.pred>0,1,0)
+    #adjust prediction to account for point spread and team seed:
+    #browser()
+    tourney.updated$seedDiff<-tourney.updated$teamA_seed-tourney.updated$teamB_seed
+    tourney.updated$teamA_win.predAdj<-tourney.updated$teamA_win.pred
+    
+    #browser()
+    #make seed combo column:
+    team1Matchup<-ifelse(nchar(tourney.updated$teamA_seed)==1,paste0("0",tourney.updated$teamA_seed),tourney.updated$teamA_seed)
+    team2Matchup<-ifelse(nchar(tourney.updated$teamB_seed)==1,paste0("0",tourney.updated$teamB_seed),tourney.updated$teamB_seed)
+    
+    tourney.updated$seedMatchup<-paste0(team1Matchup,"_",team2Matchup)
+    tourney.updated$teamA_win.histProb<-0
+    #browser()
+    #add weights:
+    for(i in 1:nrow(tourney.updated)){
+        #initial probabilities
+        matchupFind<-grep(tourney.updated$seedMatchup[i],winProbs$seedMatchup)
+        if(length(matchupFind)==0){
+            tourney.updated$teamA_win.histProb[i]<-0.5-(tourney.updated$seedDiff[i]/30) #set to 50/50 chance
+        }
+        else{
+            tourney.updated$teamA_win.histProb[i]<-winProbs$winProb[grep(tourney.updated$seedMatchup[i],winProbs$seedMatchup)]
+            
+        }
+        #tourney.updated$teamA_win.histProb[i]<-winProbs$winProb[grep(tourney.updated$seedMatchup[i],winProbs$seedMatchup)]
+        #adjust the winPred:
+        # if(tourney.updated$teamA_diff.pred[i]>=-1 & tourney.updated$teamA_seed[i]>tourney.updated$teamB_seed[i]){
+        #     tourney.updated$teamA_win.predAdj[i]<-1   
+        # }
+        
+        #print(i)
+    }
+    #browser()
+    #binary win solely based on seed probability wins from matchups:
+    tourney.updated$teamA_winProbBinary<-NA
+    tourney.updated$teamA_winProbBinary<-ifelse(tourney.updated$teamA_win.histProb>=0.5,1,0)
+    #enemble results:
+    tourney.updated$teamA_winProbFinal<-(((tourney.updated$teamA_win.pred+tourney.updated$teamA_win.predAdj+
+                                               tourney.updated$teamA_winProbBinary)/3)+(2*tourney.updated$teamA_win.histProb))/3
+    #finalBinary:
+    tourney.updated$teamA_winProbBinaryAdj<-ifelse(tourney.updated$teamA_winProbFinal>=0.5,1,0)
+    return(tourney.updated)
+    
+    
+}
+results2018<-NCAAmodel2018(stats.df = meanSeasonStats2018.df,model=fit.rf,tourney.df=all_matchups, 
+                           seeds=seeds2018,winProbs = matchupFreq)
+intersect(names(results2018),names(all_matchups))
+#merge probabilities to the submission file:
+submissionFile<-merge(all_matchups,results2018,by=intersect(names(results2018),names(all_matchups)))
+#remove columns that aren't necessary:
+submissionFile<-submissionFile[,c("ID","teamA_win.histProb")]
+#change column names:
+names(submissionFile)<-c("id","pred")
+#save the file:
+write.csv(submissionFile,"C:/Users/jroberti/Git/mm2017/data2018/RobertiSubmission.csv",row.names = F)
