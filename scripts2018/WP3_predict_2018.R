@@ -16,7 +16,7 @@ seeds2018 <- dplyr::filter(seeds2018, Season == 2018) %>% arrange(TeamID)
 
 teamNames <- read.csv(paste0(inpath, "data2018/Teams.csv"), stringsAsFactors=FALSE)
 
-
+teamNames <- dplyr::select(teamNames, TeamID, TeamName)
 
 #### put together all unique matchups
 # stolen from: https://stackoverflow.com/questions/17171148/non-redundant-version-of-expand-grid
@@ -68,6 +68,14 @@ head(preds_2018)
 test2$prediction.loss <- preds_2018$predictions[,1] 
 test2$prediction.win <- preds_2018$predictions[,2]
 
-#
-
 write.csv(dplyr::select(test2, ID, prediction.win) %>% rename(Pred=prediction.win), paste0(inpath, "submissions/teddyt_ranger5wOA_toKag.csv"), row.names=FALSE)
+
+write.csv(all_matchups, "all_tournament_matchups_2018.csv", row.names=FALSE)
+
+#### for my brackets #### 
+bracket_data <- test2
+
+bracket_data2 <- merge(bracket_data, teamNames, by.x = "team_y", by.y = "TeamID")
+bracket_data2 <- merge(bracket_data2, teamNames, by.x = "team_x", by.y = "TeamID")
+
+write.csv(bracket_data2, paste0(inpath, "submissions/ranger5wOA_bracket_results.csv"), row.names=FALSE)
