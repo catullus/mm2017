@@ -583,41 +583,57 @@ modelNCAA<-function(stats.df, model, tourney.df, seeds, winProbs){
     #browser()
     tourney.updated$seedDiff<-tourney.updated$teamA_seed-tourney.updated$teamB_seed
     tourney.updated$teamA_win.predAdj<-tourney.updated$teamA_win.pred
-    tourney.updated$teamA_win.predProb<-0
+    
     #browser()
+    #make seed combo column:
+    team1Matchup<-ifelse(nchar(tourney.updated$teamA_seed)==1,paste0("0",tourney.updated$teamA_seed),tourney.updated$teamA_seed)
+    team2Matchup<-ifelse(nchar(tourney.updated$teamB_seed)==1,paste0("0",tourney.updated$teamB_seed),tourney.updated$teamB_seed)
+
+    tourney.updated$seedMatchup<-paste0(team1Matchup,"_",team2Matchup)
+    tourney.updated$teamA_win.histProb<-0
     #add weights:
-    for(i in 1:length())
-    browser()
-    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==15 & tourney.updated$teamB_seed[i]==2]<-0.05
-    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==14 & tourney.updated$teamB_seed[i]==3]<-0.125
-    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==13 & tourney.updated$teamB_seed[i]==4]<-0.1878
-    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==12 & tourney.updated$teamB_seed[i]==5]<-0.363
-    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==11 & tourney.updated$teamB_seed[i]==6]<-0.413
-    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==10 & tourney.updated$teamB_seed[i]==7]<-0.413
-    tourney.updated$teamA_win.predProb[tourney.updated$teamA_seed[i]==9 & tourney.updated$teamB_seed[i]==8]<-0.434
+    for(i in 1:nrow(tourney.updated)){
+        #initial probabilities
+        tourney.updated$teamA_win.histProb[i]<-winProbs$winProb[grep(tourney.updated$seedMatchup[i],winProbs$seedMatchup)]
+        #adjust the winPred:
+        if(tourney.updated$teamA_diff.pred[i]>=-1 & tourney.updated$teamA_seed[i]>tourney.updated$teamB_seed[i]){
+            tourney.updated$teamA_win.predAdj[i]<-1   
+        }
+        
+        #print(i)
+    }
+    #browser()
+    #binary win solely based on seed probability wins from matchups:
+    tourney.updated$teamA_winProbBinary<-NA
+    tourney.updated$teamA_winProbBinary<-ifelse(tourney.updated$teamA_win.histProb>=0.5,1,0)
+    #enemble results:
+    tourney.updated$teamA_winProbFinal<-(((tourney.updated$teamA_win.pred+tourney.updated$teamA_win.predAdj+
+                                            tourney.updated$teamA_winProbBinary)/3)+(2*tourney.updated$teamA_win.histProb))/3
+    #finalBinary:
+    tourney.updated$teamA_winProbBinaryAdj<-ifelse(tourney.updated$teamA_winProbFinal>=0.5,1,0)
+    
+    
+    
+    
+    #browser()
     
     #output data frame:
     return(tourney.updated)
 }
 #run it!
-results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.rf,tourney.df=tourney, 
+results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.glm,tourney.df=tourney, 
                    seeds=tourneySeeds,winProbs = matchupFreq)
 #accuracy of non-adjusted model:
 length(which(results$teamA_win==results$teamA_win.pred))/nrow(results)
 #accuracy of sed-adjusted model:
 length(which(results$teamA_win==results$teamA_win.predAdj))/nrow(results)
+#accuracy of historic probabilities:
+length(which(results$teamA_win==results$teamA_winProbBinary))/nrow(results)
 
-#more exploratory testing:
-#test1<-which(results$teamA_diff.pred<=0) 
-test2<-which(results$teamA_win==1)
-test3<-which(results$seedDiff>=0)
 
-testsAll<-results[Reduce(intersect, list(test2,test3)),]
-#testsAll<-results[Reduce(intersect, list(test1,test2)),]
-length(which(testsAll$teamA_win==testsAll$teamA_win.pred))/nrow(testsAll)
-length(which(testsAll$teamA_win==testsAll$teamA_win.predAdj))/nrow(testsAll)
-
-test1b<-which(results$teamA_diff.pred>=0) 
-test2b<-which(results$teamA_diff.pred>=-3)
-test3b<-which(results$seedDiff>0)
-testsAll<-results[Reduce(intersect, list(test1,test2,test3)),]
+#log loss info:
+library(MLmetrics)
+LogLoss(results$teamA_winProbFinal, results$teamA_win)
+LogLoss(results$teamA_win.histProb, results$teamA_win)
+# logLoss<- sum(results$teamA_win*log(results$teamA_winProbFinal)+(1-results$teamA_win)+log(1-results$teamA_winProbFinal))
+# #(-1/nrow(results))*
