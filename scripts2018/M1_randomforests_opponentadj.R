@@ -3,6 +3,7 @@
 notgitpath <- "C:/Users/cflagg/Documents/R_Projects/mm2017_local/"
 
 rf5wOA <- readRDS(paste0(notgitpath, "rf5wOA_mod.rds"))
+ranger5wOA <- readRDS(paste0(notgitpath, "ranger5wOA_mod.rds"))
 
 ## load simple tourny outcomes
 tourny <- read.csv(paste0(inpath, "data/TourneyCompactResults.csv"))

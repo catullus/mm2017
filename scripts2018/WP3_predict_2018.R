@@ -40,3 +40,5 @@ names(all_matchups) <- c("x", "y")
 
 all_matchups <- arrange(all_matchups, x)
 all_matchups$id <- paste0("2018_", all_matchups$x, "_", all_matchups$y)
+
+#merge(x = all_matchups, y = reg2018_pp_5w) 

@@ -23,7 +23,7 @@ source(paste0(inpath, "/scripts2018/functions_2018.R"))
 reg2018 <-read.csv(paste0(inpath, "data2018/RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 names(reg2018) <- tolower(names(reg2018))
 ## arrange by lowest Wteam, as that is how kaggle wants the IDs arranged (lowest team first)
-reg2018 <- dplyr::arrange(reg2018, season, daynum, wteamid, lteamid) %>% rename(wteam=wteamid, lteam=lteamid) %>% filter(season == submission_target)
+reg2018 <- dplyr::arrange(reg2018, season, daynum, wteamid, lteamid) %>% dplyr::rename(wteam=wteamid, lteam=lteamid) %>% filter(season == submission_target)
 team2018 <- read.csv(paste0(inpath, "data2018/Teams.csv"), stringsAsFactors = FALSE)
 seeds2018 <- read.csv(paste0(inpath, "data2018/NCAATourneySeeds.csv"), stringsAsFactors = FALSE)
 seeds2018$uid <- paste0(seeds2018$Season,"_",seeds2018$Team)
@@ -128,11 +128,11 @@ reg2018_winning_stats <-reg2018[,grep("^w.*|week|season|daynum|gameid|team_rank"
 reg2018_losing_stats <-reg2018[,grep("^l.*|week|season|daynum|gameid|team_rank",names(reg2018))] ## location doesn't get picked up for this one
 
 names(reg2018_winning_stats)<-gsub("^w","",names(reg2018_winning_stats)) #remove w from col name
-reg2018_winning_stats <- dplyr::rename(reg2018_winning_stats, week=eek) %>% dplyr::select(-loc)
+reg2018_winning_stats <- dplyr::rename(reg2018_winning_stats) %>% dplyr::select(-loc)
 reg2018_winning_stats$win_loss <- "win"
 names(reg2018_losing_stats)<-gsub("^l","",names(reg2018_losing_stats)) # remove l from col name
 names(reg2018_losing_stats)<-gsub("^w","",names(reg2018_losing_stats)) # remove "w" from "wloc"
-reg2018_losing_stats <- rename(reg2018_losing_stats, week=eek)
+reg2018_losing_stats <- rename(reg2018_losing_stats)
 reg2018_losing_stats$win_loss <- "loss"
 
 ## check names matching
@@ -155,5 +155,5 @@ reg2018_opp_5w <- merge(x = dplyr::filter(reg2018_pp_5w),
 ## THIS STEP REMOVES DUPlICATE ROwS wITH ERRONEOUS DATA MATCHED UP
 ## IF YOU DON'T UNDESTAND THIS, lOOK AT THE object "TEST" ABOVE FOR RESUlTS OF THE MERGE
 ## Also removes rows with NA
-reg2018_opp_5w <- dplyr::filter(reg2018_opp_5w, !is.na(team.x) & team.x != team.y) %>% select(-win_loss.y, -season.y, -daynum.y, -week.x, -week.y)
+reg2018_opp_5w <- dplyr::filter(reg2018_opp_5w, !is.na(team.x) & team.x != team.y) %>% select(-win_loss.y, -season.y, -daynum.y)
 
