@@ -3,19 +3,9 @@
 # Mess with one reg2018ular season data and the previous_perf() function
 # Avoid ranks
 # Make sure function works with NCAA data
-# Currently working on 2017 data so I avoid renaming 50+ columns (column name format changed in 2018)
-library(plyr)
-library(dplyr)
-library(zoo)
-library(stringr)
-library(PlayerRatings)
-library(car)
-library(randomForest)
-library(tidyr)
-library(ranger)
 
 ## seasons being used for this and other data sets
-season_target18 <- c(2018)
+submission_target <- c(2018)
 
 #Open the datasets:
 if (length(list.files("C:/Users/jroberti/Git/mm2017/data2018/")) > 0){
@@ -33,7 +23,7 @@ source(paste0(inpath, "/scripts2018/functions_2018.R"))
 reg2018 <-read.csv(paste0(inpath, "data2018/RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
 names(reg2018) <- tolower(names(reg2018))
 ## arrange by lowest Wteam, as that is how kaggle wants the IDs arranged (lowest team first)
-reg2018 <- dplyr::arrange(reg2018, Season, DayNum, WTeamID, LTeamID)
+reg2018 <- dplyr::arrange(reg2018, season, daynum, wteamid, lteamid) %>% rename(wteam=wteamid, lteam=lteamid) %>% filter(season == submission_target)
 team2018 <- read.csv(paste0(inpath, "data2018/Teams.csv"), stringsAsFactors = FALSE)
 seeds2018 <- read.csv(paste0(inpath, "data2018/NCAATourneySeeds.csv"), stringsAsFactors = FALSE)
 seeds2018$uid <- paste0(seeds2018$Season,"_",seeds2018$Team)
@@ -49,8 +39,6 @@ reg2018$lscore_diff <- reg2018$lscore - reg2018$wscore
 ### give me one season for testing
 reg2018 <- dplyr::filter(reg2018, season %in% c(2018)) ## comment out or modify to expand data set
 
-### generate ranks for the filtered reg2018ular season data set
-reg2018rank <-  plyr::ddply(reg2018, .(season), function(x) {ranker(x)})
 
 #create adjusted shooting stats:  (fg = 2 or 3 pointer...)  let's partition 2 and 3 pointers:
 ######### wINNING TEAM #############
@@ -130,7 +118,10 @@ reg2018$lposs.eff.wt<-reg2018$lposs.action.wt/reg2018$lposs
 ### generate ranks for the filtered reg2018ular season data set
 reg2018 <-  plyr::ddply(reg2018, .(season), function(x) {ranker(x)})
 
-reg2018 <- dplyr::select(reg2018, -weekkey_loser, -weekkey_winner)
+reg2018$weekkey_loser <- NULL
+reg2018$weekkey_winner <- NULL
+
+"weekkey_loser" %in% names(reg2018)
 
 #### rename "w" and "l" columns ####
 reg2018_winning_stats <-reg2018[,grep("^w.*|week|season|daynum|gameid|team_rank", names(reg2018))]
@@ -164,4 +155,5 @@ reg2018_opp_5w <- merge(x = dplyr::filter(reg2018_pp_5w),
 ## THIS STEP REMOVES DUPlICATE ROwS wITH ERRONEOUS DATA MATCHED UP
 ## IF YOU DON'T UNDESTAND THIS, lOOK AT THE object "TEST" ABOVE FOR RESUlTS OF THE MERGE
 ## Also removes rows with NA
-reg2018_opp_5w <- dplyr::filter(reg2018_opp_5w, !is.na(team.x) & team.x != team.y) %>% select(-win_loss.y, -season.y, -Daynum.y, -loc.y, -eek.x, -eek.y)
+reg2018_opp_5w <- dplyr::filter(reg2018_opp_5w, !is.na(team.x) & team.x != team.y) %>% select(-win_loss.y, -season.y, -daynum.y, -week.x, -week.y)
+

@@ -49,10 +49,9 @@ if (class(ranger5wOA) == "ranger"){
 ### analyze variable importance of ranger() output
 ranger5wOA
 rg_imp <- importance(ranger5wOA)
-
 rg_imp <- data.frame(var=names(rg_imp), importance=rg_imp) %>% arrange(desc(importance))
 
-saveRDS(rf5wOA, paste0(notgitpath, "rf5wOA_mod.rds"))
+# saveRDS(rf5wOA, paste0(notgitpath, "rf5wOA_mod.rds"))
 saveRDS(ranger5wOA, paste0(notgitpath, "ranger5wOA_mod.rds"))
 
 
