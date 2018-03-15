@@ -15,18 +15,11 @@ if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
     inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/"
 }
 
-w1_data <- reg_long_stats ## from W1.R script, feeds into test data 
-
 ## load simple tourny outcomes
 tourny <- read.csv(paste0(inpath, "data/TourneyCompactResults.csv"))
 ## filter down based on info from W1.R
 # season_target is the seasons we are filtering to to reduce processing time
 tourny <- dplyr::filter(tourny, Season %in% season_target)
-
-seeds <- read.csv(paste0(inpath, "data/TourneySeeds.csv"), stringsAsFactors = FALSE)
-seeds$uid <- paste0(seeds$Season,"_",seeds$Team)
-seeds$Seed_num <- as.integer(gsub("^w|^X|^Y|^Z|a|b","", seeds$Seed))
-
 
 tourny$w_uid <- paste0(tourny$Season, "_", tourny$Wteam) # winning team uid
 tourny$l_uid <- paste0(tourny$Season, "_", tourny$Lteam) # losing team uid
@@ -38,12 +31,12 @@ tourny <- merge(x = tourny, y = dplyr::select(seeds, -Team, -Season), by.x = "l_
 
 ## grab LAST GAME of each game in tourney_test by season
 ## for each season, for each team, slice the last record and return
-pred_inputs <- w1_data %>% group_by(season, team) %>% slice(n()) %>% select(-gameid) %>% ungroup
-pred_inputs$uid <- paste0(pred_inputs$season,"_", pred_inputs$team) # input uid
+pred_inputs <- reg_long_stats %>% group_by(Season, team) %>% slice(n()) %>% select(-gameID) %>% ungroup
+pred_inputs$uid <- paste0(pred_inputs$Season,"_", pred_inputs$team) # input uid
 
-winning_inputs <- dplyr::filter(pred_inputs, team %in% unique(tourny$Wteam)) %>% dplyr::select(-season, -daynum) ## need to add suffix ".x"
+winning_inputs <- dplyr::filter(pred_inputs, team %in% unique(tourny$Wteam)) %>% dplyr::select(-Season, -Daynum) ## need to add suffix ".x"
 names(winning_inputs) <- paste0(names(winning_inputs),".x")
-losing_inputs <- dplyr::filter(pred_inputs, team %in% unique(tourny$Lteam)) %>% dplyr::select(-season, -daynum) ## need to add suffix ".y"
+losing_inputs <- dplyr::filter(pred_inputs, team %in% unique(tourny$Lteam)) %>% dplyr::select(-Season, -Daynum) ## need to add suffix ".y"
 names(losing_inputs) <- paste0(names(losing_inputs),".y")
 
 # fill tourney data frame with stats from reg_long_laststat
@@ -54,21 +47,45 @@ rf_test_data <- merge(x = tourny, y = winning_inputs, by.x = "w_uid", by.y="uid.
 rf_test_data <- merge(x = rf_test_data, y = losing_inputs, by.x = "l_uid", by.y = "uid.y")
 
 rf_test_data <- rf_test_data %>% select(-win_loss.y) # drop the win loss column, which is from the regular season NOT the tournament
+rf_test_data$loc.x <- as.factor(rf_test_data$loc.x)
+
+## factors need same number of levels in test data
+levels(rf_test_data$loc.x) <-levels(reg_opp_5w$loc.x)
+
+#### check that test data names matches names used in model #### 
+# into_rf <- na.exclude(dplyr::select(reg_opp_5w, -gameID, -team.x, -team.y,-Season.x, -Daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y))
+#pred_data <- dplyr::select(rf_test_data, names(into_rf))
+# data.frame(names(into_rf) %in% names(rf_test_data), names(into_rf))
+# data.frame(names(rf_test_data) %in% names(rf_test_data), names(rf_test_data))
+
+#### check that test data COLUMN TYPES match types in use model, including factor levels ####
+## character vectors must be converted to factors ##
+# sapply(reg_opp_5w, class)
+# sapply(rf_test_data, class)
+
+#%>% select(-gameID, -Season.x, -Daynum.x, -loc.x, -win_loss.x)
+
+## force integers into numeric
+#pred_data <- rf_test_data %>% mutate_if(is.integer, as.numeric)
+#sapply(pred_data, class)
+# levels(pred_data$loc.x) <-levels(reg_opp_5w$loc.x)
+
+## randomForest will puke if your factors do not have the same levels between test and training data
 
 # compare output of predictions
-# pred_results <- data.frame(tourny, 
-#                             pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
-#                             pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
-# table(pred_results$pred_binary)[2]/nrow(pred_results)
-pred_results <- data.frame(tourny,
-                         pred_binary = predict(ranger5wOA, data = rf_test_data)$predictions)
-pred_results$pred_binary <- ifelse(pred_results$pred_binary.win >0.5, "win", "loss")
-# pred_results_rfsmall <- data.frame(tourny, 
-#                            pred_binary = predict(object = rf5wOA_small, newdata = rf_test_data), 
-#                            pred_prob = predict(object = rf5wOA_small, newdata = rf_test_data, type = 'prob'))
-# 
-# table(pred_results_rfsmall$pred_binary)[2]/nrow(pred_results_rfsmall)
-# # how many game outcomes did the model get right?
+pred_results <- data.frame(tourny, 
+                            pred_binary = predict(object = rf5wOA, newdata = rf_test_data), 
+                            pred_prob = predict(object = rf5wOA, newdata = rf_test_data, type = 'prob'))
+table(pred_results$pred_binary)[2]/nrow(pred_results)
+#pred_results <- data.frame(tourny, 
+ #                          pred_binary = predict(ranger5wOA, data = rf_test_data)$predictions)
+#pred_results$pred_binary <- ifelse(pred_results$pred_binary.win >0.5, "win", "loss")
+pred_results_rfsmall <- data.frame(tourny, 
+                           pred_binary = predict(object = rf5wOA_small, newdata = rf_test_data), 
+                           pred_prob = predict(object = rf5wOA_small, newdata = rf_test_data, type = 'prob'))
+
+table(pred_results_rfsmall$pred_binary)[2]/nrow(pred_results_rfsmall)
+# how many game outcomes did the model get right?
 # every row in the tourny df is a win...and our model predicts the outcome of the ".x" team...
 # thus the total number of predicted "wins" should equal the number of rows
 pred_results <- filter(pred_results, WSeed_num != 16)
@@ -76,8 +93,5 @@ pred_total <- table(pred_results$pred_binary)
 
 paste0(round(pred_total[2]/sum(pred_total),2), " percent correct wins")
 
-# write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_rf5wOA.csv'), row.names=FALSE)
-write.csv(pred_results, paste0(inpath,'test_results/rf_test_results_ranger5wOA_2010_2017.csv'), row.names=FALSE)
-
-hist(pred_results$pred_binary.win)
-hist(pred_results$pred_binary.loss)
+write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_rf5wOA.csv'), row.names=FALSE)
+write.csv(pred_results, paste0(inpath,'test_results/random_forest_test_results_ranger5wOA.csv'), row.names=FALSE)

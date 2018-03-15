@@ -318,7 +318,7 @@ plot(train.updated$residual.glm)
 #make smaller trainign dataset for RF:
 #trainRF<-regrank[1:round(0.10*nrow(regrank),0),]
 #sample 5000 rows from updated dataframe for RF modeL:
-trainRF<-train.updated[sample(nrow(train.updated), 10000),]
+trainRF<-train.updated[sample(nrow(train.updated), 5000),]
 fit.rf<-randomForest(teamA_diff~teamA_fgm2.pct+teamA_fga23.rat+teamA_fgm3.pct+teamA_or.pct+teamA_dr.pct+teamA_shoot.prct+
                          teamA_stl+teamA_blk+teamA_poss.action.wt+teamA_poss.eff.wt+teamA_team_rank+
                          teamB_fgm2.pct+teamB_fga23.rat+teamB_fgm3.pct+teamB_shoot.prct+teamB_stl+
@@ -373,9 +373,6 @@ colnames(meanSeasonStats.df)[colnames(meanSeasonStats.df) == 'Group.1'] <- 'team
 colnames(meanSeasonStats.df)[colnames(meanSeasonStats.df) == 'Group.2'] <- 'season'
 saveRDS(meanSeasonStats.df,"C:/users/jroberti/Git/mm2017/data2018/meanSeasonStats.rds")
 
-#read meanSeasonStats so I don't have to do some of the above:
-
-
 # #Build the mode:
 # train<-meanSeasonStats.df[1:round(0.75*nrow(meanSeasonStats.df),0),]
 # test<-meanSeasonStats.df[(round(0.75*nrow(meanSeasonStats.df),0)+1):nrow(meanSeasonStats.df),]
@@ -413,92 +410,9 @@ saveRDS(meanSeasonStats.df,"C:/users/jroberti/Git/mm2017/data2018/meanSeasonStat
 
 ################# USE MODEL TO PREDICT RESULTS OF TOURNEY GAMES ###############
 tourney<-read.csv(paste0(inpath, "TourneyDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)
-#open the tourney seeds:
-tourneySeeds<-read.csv(paste0(inpath, "TourneySeeds.csv"), stringsAsFactors = FALSE, header = TRUE)
-################create win probs based on seed:
-#create game ID to link ending DFs together:
-tourney$gameID<-paste(tourney$Season,tourney$Wteam,tourney$Lteam,sep="_")
-#add Roundsto tounrey data:
-tourney$Round<-NA
-tourney$Round[grep("136|137",tourney$Daynum)]<-1
-tourney$Round[grep("138|139",tourney$Daynum)]<-2
-tourney$Round[grep("143|144",tourney$Daynum)]<-3
-tourney$Round[grep("145|146",tourney$Daynum)]<-4
-tourney$Round[grep("152",tourney$Daynum)]<-5
-tourney$Round[grep("154",tourney$Daynum)]<-6
-
-###Winning Team
-tourneyWinners<-tourney[,c("Season","Wteam","gameID","Round")]
-names(tourneyWinners)<-c("Season","Team","gameID","Round")
-tourneyWinners<-merge(tourneyWinners,tourneySeeds,by=intersect(names(tourneyWinners),names(tourneySeeds)))
-#remove letters from seeds:
-tourneyWinners$Seed<-gsub("\\D","",tourneyWinners$Seed)
-###Losing Team
-tourneyLosers<-tourney[,c("Season","Lteam","gameID","Round")]
-names(tourneyLosers)<-c("Season","Team","gameID","Round")
-tourneyLosers<-merge(tourneyLosers,tourneySeeds,by=intersect(names(tourneyLosers),names(tourneySeeds)))
-#remove letters from seeds:
-tourneyLosers$Seed<-gsub("\\D","",tourneyLosers$Seed)
-#merge on gameID:
-tourneyProbs.df<-merge(tourneyWinners,tourneyLosers,by= c("gameID","Season","Round"))
-#rename:
-names(tourneyProbs.df)<-c("gameID","Season","Round","teamW","seedW","teamL","seedL")
-#create column with both team's seeds:
-tourneyProbs.df$seedMatchup<-paste0(tourneyProbs.df$seedW,"_",tourneyProbs.df$seedL)
-#make Round numeric:
-tourneyProbs.df$Round<-as.numeric(tourneyProbs.df$Round)
-#grab frequency stats:
-#matchupFreq<-tourneyProbs.df %>% group_by(seedMatchup,Round) %>% summarise(Frequency = n())
-#make frequencies relative to all like-matchups (can exclude Round)
-matchupFreq<-tourneyProbs.df %>% group_by(seedMatchup) %>% summarise(Frequency = n())
-matchupFreq$winProb<-NA
-#create a list of matchups that have either never occured or the lower seed has alwayus lost
-missingMatchups<-list()
-for(i in 1:nrow(matchupFreq)){
-    #grab index of opposite matchup:
-    findMatchup<-paste0(substr(matchupFreq$seedMatchup[i],4,5),"_",substr(matchupFreq$seedMatchup[i],1,2))
-    mirrorInd<-grep(findMatchup,matchupFreq$seedMatchup)
-    #create probability based on all like-matchups:
-    if(length(mirrorInd)>0){
-        matchupFreq$winProb[i]<-matchupFreq$Frequency[i]/(matchupFreq$Frequency[i]+matchupFreq$Frequency[mirrorInd])
-    }
-    else{
-        matchupFreq$winProb[i]<-matchupFreq$Frequency[i]/matchupFreq$Frequency[i]
-        missingMatchups[[i]]<-data.frame(seedMatchup=findMatchup,Frequency=0,winProb=0)
-    }
-}
-#combine all the missing matchups into one DF:
-missingMatchups.df<-do.call(rbind,missingMatchups)
-#combine this with matchupFreq df:
-matchupFreq<-rbind(matchupFreq,missingMatchups.df)
-# matchupFreq$Round<-as.integer(matchupFreq$Round)
-# #how many games from each round are played:
-# gamesPerRound<-table(na.omit(tourneyProbs.df$Round))
-# #gamesPerRoundAdj<-c(gamesPerRound[1]/(32*8),gamesPerRound[2]/16,gamesPerRound[3]/4,gamesPerRound[4]/2,gamesPerRound[5]/16
-# #get probability of wins:
-# matchupFreq$freqPerYear<-matchupFreq$Frequency/length(unique(tourneyProbs.df$Season))
-# matchupFreq$Prob<-0
-# match
-# #Round 1 probs
-# matchupFreq$Prob[grep(1,matchupFreq$Round)]<-matchupFreq$Frequency[grep(1,matchupFreq$Round)]/(length(unique(tourneyProbs.df$Season))*4)
-#     #((gamesPerRound[1]/length(unique(tourneyProbs.df$Season)))*4)
-#         #gamesPerRound[grep("1",names(gamesPerRound))]
-# 
-# 
-# 
-# 
-# probs_table<-sort(table(tourneyProbs.df$seedMatchup),decreasing =T)/(length(unique(tourneyProbs.df$Season))*4)
-# 
-# #convert to df:
-# probsFinal.df<-data.frame(t(probs_table))
-# probsFinal.df
-
 #set the data up in the same way - ultimately I'll need the team ID, and season to predict points because I'll be 
 #pulling the data from the respective season; then predict points for each team and find Win or los
-modelNCAA<-function(stats.df, model, tourney.df, seeds, winProbs){
-    #truncate the tourney data to start at 2003 (matches tourneyDetailedResults file)
-    seeds<-seeds[which(seeds$Season>=tourney.df$Season[1]),]
-    #browser()
+modelNCAA<-function(stats.df, model, tourney.df){
     #split tourney.df in half:
     tourney.df1<-tourney.df[1:round(0.5*nrow(tourney.df),0),] #team A = winning, team B = losing
     #make team A = winning team, make Team B = Losing team (opposite of the train.mirror df)
@@ -539,101 +453,31 @@ modelNCAA<-function(stats.df, model, tourney.df, seeds, winProbs){
     matchups<-tourney.updated[,c("Season","teamA_team","teamB_team")]
     #make empty list:
     df.tourney<-list()
-    df.seed<-list()
     #browser()
     #use Season, and teamIDs in matchup to find seasonal team data and predict score differential:
     for(i in 1:nrow(matchups)){
-        #find correct Season and teams in stats:
+        #find correct Season and teams:
         seasonInd<-grep(matchups$Season[i],stats.df$season)
         team1Ind<-grep(matchups$teamA_team[i],stats.df$team)
         team2Ind<-grep(matchups$teamB_team[i],stats.df$team)
-        #grab correct Season and teams in seeds:
-        seasonIndSeed<-grep(matchups$Season[i],seeds$Season)
-        team1IndSeed<-grep(matchups$teamA_team[i],seeds$Team)
-        team2IndSeed<-grep(matchups$teamB_team[i],seeds$Team)
-        #map correct season with correct teams in stats:
+        #map correct season with correct teams:
         team1Season<-meanSeasonStats.df[intersect(seasonInd,team1Ind),]
-        #map correct season with correct teams in seeds:
-        team1Season$seed<-as.numeric(gsub("\\D","",seeds$Seed[intersect(seasonIndSeed,team1IndSeed)]))
         #add "W" to all names:
         names(team1Season)<-paste0("teamA_",names(team1Season))
         team2Season<-meanSeasonStats.df[intersect(seasonInd,team2Ind),]
-        #map correct season with correct teams in seeds:
-        team2Season$seed<-as.numeric(gsub("\\D","",seeds$Seed[intersect(seasonIndSeed,team2IndSeed)]))
         #add "L to all names:
         names(team2Season)<-paste0("teamB_",names(team2Season))
         #Create dataframe with both teams' stats:
         df.tourney[[i]]<-cbind(team1Season,team2Season)
-        df.seed[[i]]<-cbind(team1Season$teamA_seed,team2Season$teamB_seed)
     }
     out<-do.call(rbind,df.tourney)
-    out.seed<-do.call(rbind,df.seed)
-    
+    #browser()
     #run the model:
-    tourney.updated$teamA_diff.pred<-predict(object = model, newdata = out)
-    #cbind the seeds:
-    tourney.updated<-cbind(tourney.updated,out.seed)
-    #change the names to teamA_seed and teamB_seed:
-    colnames(tourney.updated)[colnames(tourney.updated) == '1'] <- 'teamA_seed'
-    colnames(tourney.updated)[colnames(tourney.updated) == '2'] <- 'teamB_seed'
-    #add binary to show if teamA won:
-    tourney.updated$teamA_win<-ifelse(tourney.updated$teamA_score>tourney.updated$teamB_score,1,0)
-    tourney.updated$teamA_win.pred<-ifelse(tourney.updated$teamA_diff.pred>0,1,0)
-    #adjust prediction to account for point spread and team seed:
-    #browser()
-    tourney.updated$seedDiff<-tourney.updated$teamA_seed-tourney.updated$teamB_seed
-    tourney.updated$teamA_win.predAdj<-tourney.updated$teamA_win.pred
-    
-    #browser()
-    #make seed combo column:
-    team1Matchup<-ifelse(nchar(tourney.updated$teamA_seed)==1,paste0("0",tourney.updated$teamA_seed),tourney.updated$teamA_seed)
-    team2Matchup<-ifelse(nchar(tourney.updated$teamB_seed)==1,paste0("0",tourney.updated$teamB_seed),tourney.updated$teamB_seed)
-
-    tourney.updated$seedMatchup<-paste0(team1Matchup,"_",team2Matchup)
-    tourney.updated$teamA_win.histProb<-0
-    #add weights:
-    for(i in 1:nrow(tourney.updated)){
-        #initial probabilities
-        tourney.updated$teamA_win.histProb[i]<-winProbs$winProb[grep(tourney.updated$seedMatchup[i],winProbs$seedMatchup)]
-        #adjust the winPred:
-        if(tourney.updated$teamA_diff.pred[i]>=-1 & tourney.updated$teamA_seed[i]>tourney.updated$teamB_seed[i]){
-            tourney.updated$teamA_win.predAdj[i]<-1   
-        }
-        
-        #print(i)
-    }
-    #browser()
-    #binary win solely based on seed probability wins from matchups:
-    tourney.updated$teamA_winProbBinary<-NA
-    tourney.updated$teamA_winProbBinary<-ifelse(tourney.updated$teamA_win.histProb>=0.5,1,0)
-    #enemble results:
-    tourney.updated$teamA_winProbFinal<-(((tourney.updated$teamA_win.pred+tourney.updated$teamA_win.predAdj+
-                                            tourney.updated$teamA_winProbBinary)/3)+(2*tourney.updated$teamA_win.histProb))/3
-    #finalBinary:
-    tourney.updated$teamA_winProbBinaryAdj<-ifelse(tourney.updated$teamA_winProbFinal>=0.5,1,0)
-    
-    
-    
-    
-    #browser()
-    
-    #output data frame:
+    tourney.updated$predScoreDiff.rf<-predict(object = model, newdata = out)
     return(tourney.updated)
 }
 #run it!
-results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.glm,tourney.df=tourney, 
-                   seeds=tourneySeeds,winProbs = matchupFreq)
-#accuracy of non-adjusted model:
-length(which(results$teamA_win==results$teamA_win.pred))/nrow(results)
-#accuracy of sed-adjusted model:
-length(which(results$teamA_win==results$teamA_win.predAdj))/nrow(results)
-#accuracy of historic probabilities:
-length(which(results$teamA_win==results$teamA_winProbBinary))/nrow(results)
+results<-modelNCAA(stats.df=meanSeasonStats.df,model=fit.glm,tourney.df=tourney)
 
 
-#log loss info:
-library(MLmetrics)
-LogLoss(results$teamA_winProbFinal, results$teamA_win)
-LogLoss(results$teamA_win.histProb, results$teamA_win)
-# logLoss<- sum(results$teamA_win*log(results$teamA_winProbFinal)+(1-results$teamA_win)+log(1-results$teamA_winProbFinal))
-# #(-1/nrow(results))*
+

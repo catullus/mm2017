@@ -12,7 +12,7 @@ library(car)
 library(randomForest)
 library(tidyr)
 library(ranger)
-library(caret)
+#library(caret)
 
 ## seasons being used for this and other data sets
 season_target <- c(2010:2017)
@@ -35,6 +35,9 @@ names(reg) <- tolower(names(reg))
 ## arrange by lowest wteam, as that is how kaggle wants the IDs arranged (lowest team first)
 reg <- dplyr::arrange(reg, season, daynum, wteam, lteam)
 team <- read.csv(paste0(inpath, "data/Teams.csv"), stringsAsFactors = FALSE)
+seeds <- read.csv(paste0(inpath, "data/TourneySeeds.csv"), stringsAsFactors = FALSE)
+seeds$uid <- paste0(seeds$season,"_",seeds$Team)
+seeds$Seed_num <- as.integer(gsub("^w|^X|^Y|^Z|a|b","", seeds$Seed))
 
 
 # create unique identifier for a game matchup e.g. "season_team1_team2"
@@ -48,7 +51,7 @@ reg$lscore_diff <- reg$lscore - reg$wscore
 reg <- dplyr::filter(reg, season %in% c(season_target)) ## comment out or modify to expand data set
 
 ### generate ranks for the filtered regular season data set
-regrank <-  plyr::ddply(reg, .(season), function(x) {ranker(x)})
+#regrank <-  plyr::ddply(reg, .(season), function(x) {ranker(x)})
 
 #create adjusted shooting stats:  (fg = 2 or 3 pointer...)  let's partition 2 and 3 pointers:
 ######### wINNING TEAM #############
@@ -158,12 +161,6 @@ reg_pp_5w <- previous_perf(data = reg_long_stats, grouper = c("season", "team"),
 head(reg_pp_5w)
 head(reg_long_stats)
 
-## checking merge output... want the rows where team.x != team.y
-##...as 4 rows are returned with data all criss crossed
-## i.e. for the 4 rows returned, we want rows 2 and 3 (not 1 and 4)
-# test <- filter(reg_pp_5w, gameid == "2017_1101_1149") %>% select(gameid, team, win_loss, fgm, fgm3, or)
-# merge(x = test, y=  test, by.x = "gameid", by.y="gameid") # see why
-
 #### opponent adjusted data set ####
 ### where "_opp_ == "opponent adjusted data"
 reg_opp_5w <- merge(x = dplyr::filter(reg_pp_5w), 
@@ -178,8 +175,4 @@ reg_opp_5w <- dplyr::filter(reg_opp_5w, !is.na(team.x) & team.x != team.y) %>% s
 #reg_opp_5w$loc.x <- as.factor(reg_opp_5w$loc.x)
 
 head(reg_opp_5w)
-
-#### DO ONE MORE CHECK ON DATA OUTPUT ####
-# filter(reg_pp_5w, gameid == "2017_1101_1270") %>% select(team, gameid, fgm, fgm3, ftm) ## this is data before join
-# filter(reg_opp_5w, gameid == "2017_1101_1270") %>% select(team.x, gameid, fgm.x, fgm3.x, ftm.x, fgm.y, fgm3.y, ftm.y) ## it should equal the team.x stats in this data frame
 

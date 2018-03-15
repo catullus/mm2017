@@ -3,7 +3,6 @@
 notgitpath <- "C:/Users/cflagg/Documents/R_Projects/mm2017_local/"
 
 rf5wOA <- readRDS(paste0(notgitpath, "rf5wOA_mod.rds"))
-ranger5wOA <- readRDS(paste0(notgitpath, "ranger5wOA_mod.rds"))
 
 ## load simple tourny outcomes
 tourny <- read.csv(paste0(inpath, "data/TourneyCompactResults.csv"))
@@ -24,11 +23,11 @@ smaller <- na.exclude(dplyr::filter(reg_opp_5w, team.x %in% teams_in_tourny | te
 #if (!("ranger5wOA" %in% ls())){
     # rf5wOA <- randomForest(as.factor(win_loss.x) ~ ., data = smaller, ncores = 8, parallel = TRUE)
 
-### caret usage
-trControl = trainControl(method = "cv", number = 10, allowParallel = TRUE, verboseIter = FALSE)
-st <- Sys.time()
-rfCaret5wOA <- train(as.factor(win_loss.x) ~ ., data = smaller, method = "rf", prox = FALSE, trControl = trControl)
-ed <- Sys.time()
+# ### caret usage
+# trControl = trainControl(method = "cv", number = 10, allowParallel = TRUE, verboseIter = FALSE)
+# st <- Sys.time()
+# rfCaret5wOA <- train(as.factor(win_loss.x) ~ ., data = smaller, method = "rf", prox = FALSE, trControl = trControl)
+# ed <- Sys.time()
 
 #### mini randomforest with top 12 predictors
 rf5wOA_small <- randomForest(as.factor(win_loss.x) ~ team_rank.x + team_rank.y + ftm.pct.x + ftm.pct.y + or.pct.x + or.pct.y + fgm3.pct.x + fgm3.pct.y + fgm2.pct.x + fgm2.pct.y + poss.eff.wt.x + poss.eff.wt.y, 
@@ -50,9 +49,10 @@ if (class(ranger5wOA) == "ranger"){
 ### analyze variable importance of ranger() output
 ranger5wOA
 rg_imp <- importance(ranger5wOA)
+
 rg_imp <- data.frame(var=names(rg_imp), importance=rg_imp) %>% arrange(desc(importance))
 
-# saveRDS(rf5wOA, paste0(notgitpath, "rf5wOA_mod.rds"))
-saveRDS(ranger5wOA, paste0(notgitpath, "ranger5wOA_mod.rds"))
+#saveRDS(rf5wOA, paste0(notgitpath, "rf5wOA_mod.rds"))
+#saveRDS(ranger5wOA, paste0(notgitpath, "ranger5wOA_mod.rds"))
 
 

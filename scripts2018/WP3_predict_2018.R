@@ -12,11 +12,13 @@ if (length(list.files("C:/Users/jroberti/Git/mm2017/data2018/")) > 0){
 }
 
 seeds2018 <- read.csv(paste0(inpath, "data2018/NCAATourneySeeds.csv"), stringsAsFactors=FALSE)
-seeds2018 <- dplyr::filter(seeds2018, Season == 2018)
+seeds2018 <- dplyr::filter(seeds2018, Season == 2018) %>% arrange(TeamID)
 
-## this should result in 68 rows i.e. the 68 teams playing in the tourny
-submission_data <- reg2018_pp_5w %>% filter(team %in% seeds2018$TeamID) %>% arrange(desc(daynum)) %>% group_by(team) %>%  slice(n()) 
+teamNames <- read.csv(paste0(inpath, "data2018/Teams.csv"), stringsAsFactors=FALSE)
 
+
+
+#### put together all unique matchups
 # stolen from: https://stackoverflow.com/questions/17171148/non-redundant-version-of-expand-grid
 expand.grid.unique <- function(x, y, include.equals=FALSE)
 {
@@ -35,10 +37,37 @@ expand.grid.unique <- function(x, y, include.equals=FALSE)
 }
 
 all_matchups <- expand.grid.unique(seeds2018$TeamID, seeds2018$TeamID)
-all_matchups <- data.frame(all_matchups)
-names(all_matchups) <- c("x", "y")
+all_matchups <- as.data.frame(all_matchups)
+names(all_matchups) <- c("team_x", "team_y")
 
-all_matchups <- arrange(all_matchups, x)
-all_matchups$id <- paste0("2018_", all_matchups$x, "_", all_matchups$y)
+### create unique ID
+all_matchups$ID <- paste0("2018_", all_matchups$team_x, "_", all_matchups$team_y)
 
-#merge(x = all_matchups, y = reg2018_pp_5w) 
+### make a vector to filter Regular season data
+tourny_teams <- unique(c(unique(all_matchups$team_x), unique(all_matchups$team_y)))
+
+### filter out teams needed
+submission_data <- reg2018_pp_5w %>% filter(team %in% tourny_teams) %>% arrange(desc(daynum)) %>% group_by(team) %>%  slice(n()) 
+submission_data$team_rank.1 <- NULL
+
+## "1124" is missing from team_x?
+
+#### NOT FINDING THIS ID #####
+#"2018_1104_1158" %in% all_matchups$ID
+
+#### MERGE 2018 SEASON data with 2018 matchups ####
+test <- merge(x = all_matchups, y = submission_data, by.x = "team_x", by.y = "team")
+#write.csv(test, "test_preds_missing.csv", row.names=FALSE)
+test2 <- merge(x = test, y = submission_data, by.x = "team_y", by.y = "team")
+
+#### predict on new unseen matchups ####
+preds_2018 <- predict(ranger5wOA, data = test2)
+
+head(preds_2018)
+
+test2$prediction.loss <- preds_2018$predictions[,1] 
+test2$prediction.win <- preds_2018$predictions[,2]
+
+#
+
+write.csv(dplyr::select(test2, ID, prediction.win) %>% rename(Pred=prediction.win), paste0(inpath, "submissions/teddyt_ranger5wOA_toKag.csv"), row.names=FALSE)

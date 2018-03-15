@@ -401,9 +401,8 @@ upsets$Conference<-gsub("Southeast","South",upsets$Conference)
 upsets$seed_conf<-paste0(upsets$Conference,"-",upsets$Seed)
 #get freuency table of seed + conference:
 sort(table(upsets$seed_conf),decreasing = T)
-sort(table(upsets$Seed),decreasing = T)
 sort(table(upsets$Conference),decreasing = T)
-upsetsProbBySeedPerYear<-sort(table(upsets$Seed),decreasing = T)/ (length(unique(upsets$Year))*4)
+upsetsBySeedPerYear<-sort(table(upsets$Seed),decreasing = T)/ length(unique(upsets$Year))
 #total upset ranks by conference:
 upsets %>% group_by(Conference) %>% summarise(Frequency = sum(Seed))
 #upsets per year:
