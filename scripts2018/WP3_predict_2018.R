@@ -75,7 +75,7 @@ write.csv(all_matchups, "all_tournament_matchups_2018.csv", row.names=FALSE)
 #### for my brackets #### 
 bracket_data <- test2
 
-bracket_data2 <- merge(bracket_data, teamNames, by.x = "team_y", by.y = "TeamID")
-bracket_data2 <- merge(bracket_data2, teamNames, by.x = "team_x", by.y = "TeamID")
+bracket_data2 <- merge(bracket_data, teamNames, by.x = "team_x", by.y = "TeamID")
+bracket_data2 <- merge(bracket_data2, teamNames, by.x = "team_y", by.y = "TeamID")
 
-write.csv(bracket_data2, paste0(inpath, "submissions/ranger5wOA_bracket_results.csv"), row.names=FALSE)
+write.csv(select(bracket_data2, team_x, team_y, TeamName.x, TeamName.y, prediction.win, prediction.loss, team_rank.x, team_rank.y, everything()), paste0(inpath, "submissions/ranger5wOA_bracket_results.csv"), row.names=FALSE)
