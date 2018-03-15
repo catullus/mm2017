@@ -21,7 +21,7 @@ teams_in_tourny <- unique(teams_in_tourny)
 smaller <- na.exclude(dplyr::filter(reg_opp_5w, team.x %in% teams_in_tourny | team.y %in% teams_in_tourny) %>% dplyr::select(-gameid, -team.x, -team.y,-season.x, -daynum.x, -score_diff.x, -score_diff.y, -score.x, -score.y))
 
 #if (!("ranger5wOA" %in% ls())){
-    # rf5wOA <- randomForest(as.factor(win_loss.x) ~ ., data = smaller, ncores = 8, parallel = TRUE)
+    rf5wOA <- randomForest(as.factor(win_loss.x) ~ ., data = smaller, ncores = 8, parallel = TRUE)
 
 # ### caret usage
 # trControl = trainControl(method = "cv", number = 10, allowParallel = TRUE, verboseIter = FALSE)

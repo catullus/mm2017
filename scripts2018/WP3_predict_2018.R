@@ -61,14 +61,17 @@ test <- merge(x = all_matchups, y = submission_data, by.x = "team_x", by.y = "te
 test2 <- merge(x = test, y = submission_data, by.x = "team_y", by.y = "team")
 
 #### predict on new unseen matchups ####
-preds_2018 <- predict(ranger5wOA, data = test2)
+preds_2018 <- predict(rf5wOA, newdata = test2, type = 'prob')
+preds_2018_ranger <- predict(ranger5wOA, data = test2)
 
 head(preds_2018)
 
-test2$prediction.loss <- preds_2018$predictions[,1] 
-test2$prediction.win <- preds_2018$predictions[,2]
+test2$ranger.loss <- preds_2018_ranger$predictions[,1] 
+test2$ranger.win <- preds_2018_ranger$predictions[,2]
+test2$rf.loss <- preds_2018[,1]
+test2$rf.win <- preds_2018[,2]
 
-write.csv(dplyr::select(test2, ID, prediction.win) %>% rename(Pred=prediction.win), paste0(inpath, "submissions/teddyt_ranger5wOA_toKag.csv"), row.names=FALSE)
+write.csv(dplyr::select(test2, ID, ranger.win, rf.win), paste0(inpath, "submissions/teddyt_ranger5wOA_toKag.csv"), row.names=FALSE)
 
 write.csv(all_matchups, "all_tournament_matchups_2018.csv", row.names=FALSE)
 
@@ -78,4 +81,13 @@ bracket_data <- test2
 bracket_data2 <- merge(bracket_data, teamNames, by.x = "team_x", by.y = "TeamID")
 bracket_data2 <- merge(bracket_data2, teamNames, by.x = "team_y", by.y = "TeamID")
 
-write.csv(select(bracket_data2, team_x, team_y, TeamName.x, TeamName.y, prediction.win, prediction.loss, team_rank.x, team_rank.y, everything()), paste0(inpath, "submissions/ranger5wOA_bracket_results.csv"), row.names=FALSE)
+write.csv(select(bracket_data2, team_x, team_y, TeamName.x, TeamName.y, rf.win, rf.loss, ranger.win, ranger.loss, team_rank.x, team_rank.y, everything()), paste0(inpath, "submissions/ranger5wOA_bracket_results.csv"), row.names=FALSE)
+
+roberti <- read.csv(paste0(inpath, "submissions/RobertiSubmission.csv"))
+roberti$team_x <- stringr::str_sub(roberti$id, 6, 9)
+roberti$team_y <- stringr::str_sub(roberti$id, 11, 14)
+
+roberti2 <- merge(roberti, teamNames, by.x = "team_x", by.y = "TeamID")
+roberti3 <- merge(roberti2, teamNames, by.x = "team_y", by.y = "TeamID")
+
+write.csv(roberti3, paste0(inpath, "submissions/roberti_sub_names.csv"), row.names=FALSE)

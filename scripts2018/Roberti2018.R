@@ -13,7 +13,7 @@ library(tidyr)
 if (length(list.files("C:/Users/jroberti/Git/mm2017/data/")) > 0){
     inpath <- "C:/Users/jroberti/Git/mm2017/data/"
 } else if (length(list.files("C:/Users/cflagg/Documents/GitHub/mm2017/data/")) > 0 ) {
-    inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data2018/"   
+    inpath <- "C:/Users/cflagg/Documents/GitHub/mm2017/data/"   
 }
 #grab detailed results:
 reg<-read.csv(paste0(inpath, "RegularSeasonDetailedResults.csv"), stringsAsFactors = FALSE, header = TRUE)

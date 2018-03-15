@@ -35,10 +35,22 @@ names(reg) <- tolower(names(reg))
 ## arrange by lowest wteam, as that is how kaggle wants the IDs arranged (lowest team first)
 reg <- dplyr::arrange(reg, season, daynum, wteam, lteam)
 team <- read.csv(paste0(inpath, "data/Teams.csv"), stringsAsFactors = FALSE)
+
 seeds <- read.csv(paste0(inpath, "data/TourneySeeds.csv"), stringsAsFactors = FALSE)
-seeds$uid <- paste0(seeds$season,"_",seeds$Team)
+seeds$uid <- paste0(seeds$Season,"_",seeds$Team)
 seeds$Seed_num <- as.integer(gsub("^w|^X|^Y|^Z|a|b","", seeds$Seed))
 
+tourny <- read.csv(paste0(inpath, "data/TourneyCompactResults.csv"))
+## filter down based on info from W1.R
+# season_target is the seasons we are filtering to to reduce processing time
+tourny <- dplyr::filter(tourny, Season %in% season_target)
+
+tourny$w_uid <- paste0(tourny$Season, "_", tourny$Wteam) # winning team uid
+tourny$l_uid <- paste0(tourny$Season, "_", tourny$Lteam) # losing team uid
+
+# join tournament results with tournament seeding
+tourny <- merge(x = tourny, y = dplyr::select(seeds, -Team, -Season), by.x = "w_uid", by.y = "uid") %>% rename(WSeed_num=Seed_num, WSeed=Seed) 
+tourny <- merge(x = tourny, y = dplyr::select(seeds, -Team, -Season), by.x = "l_uid", by.y = "uid") %>% rename(LSeed_num=Seed_num, LSeed=Seed) 
 
 # create unique identifier for a game matchup e.g. "season_team1_team2"
 reg$gameid <- paste0(reg$season, "_", reg$wteam, "_", reg$lteam)
