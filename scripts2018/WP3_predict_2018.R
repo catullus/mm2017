@@ -91,3 +91,25 @@ roberti2 <- merge(roberti, teamNames, by.x = "team_x", by.y = "TeamID")
 roberti3 <- merge(roberti2, teamNames, by.x = "team_y", by.y = "TeamID")
 
 write.csv(roberti3, paste0(inpath, "submissions/roberti_sub_names.csv"), row.names=FALSE)
+
+
+#### add actual team names
+combined_preds <- read.csv(paste0(inpath, "submissions/teddyt_ranger5wOA_toKag.csv"))
+combined_preds$team_x <- stringr::str_sub(combined_preds$ID, 6, 9)
+combined_preds$team_y <- stringr::str_sub(combined_preds$ID, 11, 14)
+combined_preds <- merge(combined_preds, teamNames, by.x = "team_x", by.y = "TeamID")
+combined_preds <- merge(combined_preds, teamNames, by.x = "team_y", by.y = "TeamID")
+
+head(combined_preds)
+
+
+write.csv(combined_preds, paste0(inpath, "submissions/combined_preds_names.csv"), row.names=FALSE)
+
+# allteams <- expand.grid(combined_preds$TeamName.x, combined_preds$TeamName.y)
+
+# allteams <- unique(allteams) 
+# names(allteams) <- c("team_xx", "team_yy")
+# allteams2 <- merge(allteams, combined_preds, by.x = "team_xx", by.y = "TeamName.x")
+# allteams3 <- merge(allteams2, combined_preds, by.x = "team_yy", by.y = "TeamName.y")
+# 
+# 
