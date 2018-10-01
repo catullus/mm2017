@@ -448,7 +448,7 @@ tourneyProbs.df$seedMatchup<-paste0(tourneyProbs.df$seedW,"_",tourneyProbs.df$se
 #make Round numeric:
 tourneyProbs.df$Round<-as.numeric(tourneyProbs.df$Round)
 #grab frequency stats:
-#matchupFreq<-tourneyProbs.df %>% group_by(seedMatchup,Round) %>% summarise(Frequency = n())
+matchupFreqbyRound<-tourneyProbs.df %>% group_by(seedMatchup,Round) %>% summarise(Frequency = n())
 #make frequencies relative to all like-matchups (can exclude Round)
 matchupFreq<-tourneyProbs.df %>% group_by(seedMatchup) %>% summarise(Frequency = n())
 matchupFreq$winProb<-NA
