@@ -25,7 +25,8 @@ ranker <- function(data){
     wide_ranks$player <- rownames(wide_ranks)
     
     # convert to long format
-    long_ranks <- tidyr::gather(wide_ranks, value = player)
+    # leave the player column out so it 
+    long_ranks <- wide_ranks %>% tidyr::gather(type, value, -player)
     names(long_ranks) <- c("player", "type", "value")
     ## this is screwing up the week -- split is a regex field
     long_ranks$week <- ldply(stringr::str_split(long_ranks$type,"[.]"))[,1]
