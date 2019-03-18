@@ -1,0 +1,184 @@
+---
+title: "marchmadness2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+ 
+# Lotter Picks
+UCLA (No. 1 Lonzo Ball), Kansas (No. 2 Josh Jackson), Duke (No. 3 Jayson Tatum and No. 9 Harry Giles), Kentucky (No. 4 De'Aaron Fox and No. 5 Malik Monk), Arizona (No. 6 Lauri Markkanen), Florida State (No. 7 Jonathan Issac) and Gonzaga (No. 10 Zach Collins).
+http://www.espn.com/blog/statsinfo/post/_/id/130371/using-recent-history-to-pick-a-national-champion
+ 
+# Source Data
+ 
+```{r}
+#sourcepath <- "C:/Users/Amy/Documents/GitHub/mm2017/scripts/"
+sourcepath <- "C:/Users/cflagg/Documents/GitHub/mm2017/scripts/"
+# 32 seconds to do all processing
+source(file = paste0(sourcepath,"proc_data.R"))
+
+tourney$key_winner <- paste0(tourney$Season,"_",tourney$Wteam)
+tourney$key_loser <- paste0(tourney$Season,"_",tourney$Lteam)
+
+tourney <- merge(tourney, seed_winner, by.x="key_winner", by.y="W_key")
+tourney <- merge(tourney, seed_loser, by.x="key_loser", by.y="L_key")
+
+tourney <- select(tourney, -W_Season, W_Seed, W_Team, L_Season, L_Seed, L_Team)
+```
+
+## FUNCTION: map pre-tourney results against actual tourney outcomes
+
+* i.e. can regular season stats become a binary predictor for tourney matchups? If so, which ones are the best? Best = >50% predictions correct
+* Assess binary outcomes e.g. does Wteam_rank > Lteam_rank = a win?
+* Does Wteam_3point_avg > Lteam_3point_avg
+* Predictors: 
+  * Seed
+* Rank
+* Win_pct
+* Win_pct_weighted
+
+```{r}
+head(proc_reg)
+head(tourney)
+
+proc_reg$key_winner <- paste0(proc_reg$Season,"_",proc_reg$team)
+proc_reg$key_loser <- paste0(proc_reg$Season,"_",proc_reg$team)
+
+proc_reg_winner <- proc_reg %>% ungroup %>% select(-key_loser, -Season, -team) 
+names(proc_reg_winner) <- paste0("W_",names(proc_reg_winner))
+proc_reg_loser <- proc_reg %>% ungroup %>% select(-key_winner, -Season, -team)
+names(proc_reg_loser) <- paste0("L_",names(proc_reg_loser))
+
+## merge winner and loser regular season data (proc_reg) to tournament results (tourney)
+mod <- merge(tourney, proc_reg_winner,by.x="key_winner", by.y="W_key_winner")
+mod <- merge(mod, proc_reg_loser,by.x="key_loser", by.y="L_key_loser")
+## add seeds
+# mod <- merge(mod, seed_winner, by.x="W_key", by.y="W_key")
+# mod <- merge(mod, seed_loser, by.x="L_key", by.y="L_key")
+
+mod$W_win_pct <- mod$W_totwin / (mod$W_totwin + mod$W_totloss)
+mod$W_win_pct_weighted <- mod$W_totwin_weight / (mod$W_totwin_weight + mod$W_totloss_weight)
+
+mod$L_win_pct <- mod$L_totwin / (mod$L_totwin + mod$L_totloss)
+mod$L_win_pct_weighted <- mod$L_totwin_weight / (mod$L_totwin_weight + mod$L_totloss_weight)
+``` 
+
+# Exploratory: do the regular season stats work as better binary predictors than seed?
+
+* e.g. Model = (Better Seed > Worse Seed) ~ Game Outcome 
+* Do any of these metrics predict outcomes of tournament matches better over all games?
+
+```{r}
+# ranks
+m1 <- table(mod$W_final_rank > mod$L_final_rank)
+m1r <- m1[2]/sum(m1)
+
+# seeds a 'lower' seed value (e.g. 1) should beat a 'higher' seed value (e.g. 16)
+m2 <- table(mod$W_seedval < mod$L_seedval)
+m2r <- m2[2]/sum(m2)
+table(mod$Daynum)
+
+tourney_compare <- function(data,val){
+  W_val <- paste0("W_",val)
+  L_val <- paste0("L_",val)
+  out <- table(data[,W_val] > data[,L_val])
+  r <- out[2]/sum(out)
+  return(r)
+}
+
+tourney_compare(mod, "final_rank")
+tourney_compare(mod, "seedval")
+
+# run every variable in regular_season_results + tourney_outcome data.frame
+ins <- names(mod[,c(20:49)])
+# genericize the names
+ins <- str_split_fixed(ins, "_", 2) #
+
+sapply(X = c(ins[,2], "seedval"), FUN = tourney_compare, data = mod)
+
+## Seeds - 75% ; Ranks = 72% (Round of 32)
+tourney_compare(filter(mod, Daynum %in% c(136, 137)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(136, 137)), "final_rank")
+
+## Seeds - 71% ; Ranks = 69% (Round of 32)
+tourney_compare(filter(mod, Daynum %in% c(138, 139)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(138, 139)), "final_rank")
+
+## Seeds = 70% ; Ranks = 67% (Sweet Sixteen)
+tourney_compare(filter(mod, Daynum %in% c(143, 144)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(143, 144)), "final_rank")
+
+# Seed is 53% correct in round 4 (Elite Eight) -- Rank is 58%
+tourney_compare(filter(mod, Daynum %in% c(145, 146)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(145, 146)), "final_rank")
+
+# Seed is 80% correct in round 5 (Final Four) -- Rank is 62.5%
+tourney_compare(filter(mod, Daynum %in% c(152)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(152)), "final_rank")
+
+# Seed is 84% correct in round 5 (Final Four) -- Rank is 58%
+tourney_compare(filter(mod, Daynum %in% c(154)), "seedval")
+tourney_compare(filter(mod, Daynum %in% c(154)), "final_rank")
+```
+
+# Exploratory: Can Elo rank predict match outcomes better than seed for a given round?
+
+* Elo does better than seed as a predictor 1.5% of the time for all games...not nearly better enough to use 
+* Does Elo predict off-seed games any differently? e.g. is W_team_rating < L_team_rating in upsets (i.e. W_team_seed > L_team_seed)?
+  * Filter by upsets only (where upset = W_team_seed > L_team_seed | win)
+
+```{r}
+# convert day number to round number
+round_num <- function(x) {
+  switch(as.character(x), 
+         "134"="0",
+         "135"="0",
+         "136"="1",
+         "137"="1",
+         "138"="2",
+         "139"="2",
+         "143"="3",
+         "144"="3",
+         "145"="4",
+         "146"="4",
+         "152"="5",
+         "154"="6")}
+
+# how often does the seed vs. the Elo rating disagree?
+mod$round_number <- as.numeric(sapply(mod$Daynum, round_num))
+mod$Elo_result <- ifelse(mod$W_final_rank > mod$L_final_rank, 1, 0)
+mod$seed_result <- ifelse(mod$W_seedval < mod$L_seedval, 1, 0)
+mod$real_result <- 1 # every row equals a win -- just to make this easier to read
+
+# they only disagree 8.7% of the time between 2002 - 2016
+rank_seed_mismatch <- table(mod$Elo_result == mod$seed_result)
+1-rank_seed_mismatch[2]/sum(rank_seed_mismatch)
+
+# which one is more wrong? Seeding is slightly more wrong (by just 15 games over 16 years)
+table(mod$Elo_result == mod$real_result)
+table(mod$seed_result == mod$real_result)
+```
+
+## Focus on upset matches
+
+```{r}
+# identify seed upsets -- higher seed number = worse ranked team
+mod$upset <- ifelse(mod$W_seedval > mod$L_seedval, 1, 0)
+
+# teams that upset -- 265 games
+upsets <- filter(mod, upset==1)
+# which seeds upset the most?
+table(upsets$W_seedval)
+```
+
+```{r}
+# which upset teams actually went to the final? -- only 3 lower ranked seeds have won 
+filter(upsets, Daynum==154)
+```
+
+
+
+
+
+
+
