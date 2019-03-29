@@ -1,3 +1,13 @@
+## for the given day, assign the numeric week
+week_idx <- data.frame(day=seq(0, 161, 7), week=seq(1,24, 1))
+assign_week <- function(d, idx){
+  for (i in 1:length(idx$day)){
+    if (d >= idx[i,1] & d <= idx[i+1,1]){
+      return(idx[i,2])
+    }
+  }
+}
+
 ranker <- function(data){
     #browser()
     # assign week of the year based on DayNum -- add year from 'Season'
@@ -38,7 +48,8 @@ ranker <- function(data){
     # 
     reg_weekly_ranks <- merge(data, weekly_ranks, by.x=c("weekkey_winner"), by.y=c("weekkey"))
     reg_weekly_ranks <- rename(reg_weekly_ranks, WTeamID_rank=value) %>% select(-player, -type, -week.x, -week.y)
+    
     reg_weekly_ranks <- merge(reg_weekly_ranks, weekly_ranks, by.x=c("weekkey_loser"), by.y=c("weekkey"))
-    reg_weekly_ranks <- rename(reg_weekly_ranks, WTeamID_rank=value)
+    reg_weekly_ranks <- rename(reg_weekly_ranks, LTeamID_rank=value)
     return(reg_weekly_ranks)
 }

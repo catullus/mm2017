@@ -16,17 +16,17 @@ source("~/Documents/GitHub/mm2017/2018/scripts2018/function_previous_performance
 ##### READ RAW DATA #####
 inpath <- "C:/Users/Amy/Documents/GitHub/mm2017/2018/data2018/"
 
-reg <- read.csv(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
+reg <- data.table::fread(paste0(inpath, "RegularSeasonCompactResults.csv"), stringsAsFactors = FALSE)
 #reg <- filter(reg, Season %in% c(2002:2013))
 
-team <- read.csv(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
-seasons <- read.csv(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
+team <- data.table::fread(paste0(inpath, "Teams.csv"), stringsAsFactors = FALSE)
+seasons <- data.table::fread(paste0(inpath, "Seasons.csv"), stringsAsFactors = FALSE)
 
-tourney <- read.csv(paste0(inpath, "NCAATourneyCompactResults.csv"), stringsAsFactors = FALSE)
+tourney <- data.table::fread(paste0(inpath, "NCAATourneyCompactResults.csv"), stringsAsFactors = FALSE)
 #tourney <- filter(tourney, Season %in% c(2002:2013))
 
-seeds <- read.csv(paste0(inpath, "NCAATourneySeeds.csv"), stringsAsFactors = FALSE)
-seed <- filter(seeds, Season %in% c(2002:2016))
+seeds <- data.table::fread(paste0(inpath, "NCAATourneySeeds.csv"), stringsAsFactors = FALSE)
+seed <- filter(seeds, Season %in% c(2002:2018))
 seed$key <- paste0(seed$Season,"_",seed$Team)
 seed$seedval <- as.numeric(str_extract(seed$Seed, "[0-9]{1,2}"))
 
@@ -40,7 +40,7 @@ reg$ldiff <- reg$LScore - reg$WScore
 
 #### RANK TEAMS BY ranker() FUNCTION ####
 #start <- Sys.time()
-debug(ranker)
+# debug(ranker)
 regrank <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
 #end <- Sys.time()
 #end-start
@@ -49,8 +49,12 @@ regrank <-  plyr::ddply(reg, .(Season), function(x) {ranker(x)})
 
 ## WEIGHT ALG
 #head(regrank)
-regrank$win_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)#1
-regrank$loss_weight <- (regrank$Lteam_rank/regrank$Wteam_rank)#1
+regrank$win_weight <- (regrank$LTeamID_rank/regrank$WTeamID_rank)*1 #1
+regrank$loss_weight <- (regrank$LTeamID_rank/regrank$WTeamID_rank)*1 #1
+
+regrank$rank_diff <- regrank$WTeamID_rank - regrank$LTeamID_rank
+
+m1 <- lm()
 
 wreg <- select(regrank, Season, Daynum, Wteam, Wscore, Wteam_rank, Wloc, Numot, wdiff, win_weight, Week) %>% rename(team=Wteam,score=Wscore,loc=Wloc,diff=wdiff, weight=win_weight, rank=Wteam_rank)
 lreg <- select(regrank, Season, Daynum, Lteam, Lscore, Lteam_rank, Wloc, Numot, ldiff, loss_weight, Week) %>% rename(team=Lteam,score=Lscore,loc=Wloc,diff=ldiff, weight=loss_weight, rank=Lteam_rank)
